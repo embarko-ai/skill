@@ -1,0 +1,26 @@
+# hostnsoft Deploy — Troubleshooting
+
+Consult this when a deploy fails or an app doesn't come up healthy after a successful API response.
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Deploy API returns an error about a missing directory or build path | The build tool was invoked with the version tag in place of the source directory | Ensure the build command's directory argument and the image/version tag are passed as separate, correctly-ordered arguments |
+| App fails with an "access denied" / "not found" error when starting, even though the build succeeded | A non-unique or floating version tag (e.g. reusing the same tag across deploys) can cause the orchestrator to look for a fresh copy instead of using the one just built | Always deploy with a unique, explicit version per build |
+| Build fails with a permissions error related to the build daemon | The user running the build doesn't have permission to access the build backend | Ensure the deploying user has the necessary local permissions (e.g. group membership for the container runtime) before deploying |
+| Job spec fails to parse / deployment config is rejected | A configuration block was malformed (e.g. improperly nested) | Validate the generated deployment configuration before submitting it; use a dry-run/plan step if the platform supports one |
+| Deployment "succeeds" per the API, but the app isn't reachable | The API only confirms the job was accepted, not that it started successfully | Always run the verification step (Step 4) — check job status and hit the returned URL directly before reporting success |
+| App is reachable via direct/internal address but not via its public URL | Routing layer isn't configured for that app's port/route, or DNS hasn't propagated | Confirm the routing configuration includes the app's entrypoint; confirm DNS resolves to the expected address |
+| Public URL resolves to an unexpected address | Some dynamic-DNS-style services can misparse hostnames that end in a digit adjacent to the embedded address | Ensure the app name and the address portion of the generated hostname are separated by a non-numeric label |
+| Deployment stuck in a failed/retry loop | Application-level crash on startup, or leftover state from a previous failed deployment blocking a clean retry | Check application logs for the startup error; if the platform supports it, purge/reset the previous failed deployment before retrying |
+| Same parse error persists after a config fix is applied | A stale duplicate process is still bound to the API's port and serving the old code — restarting/reloading a process manager entry can silently leave an old instance running under a different name/ID | List every process bound to the port directly (not just by expected name) and terminate all of them before starting a single clean instance |
+| Deploy API itself becomes unreachable (connection times out, not refused) after a routing/domain change | A firewall rule for the new port wasn't added, or DNS hasn't propagated yet | Confirm DNS resolves to the expected address; confirm the port is open in the firewall; test locally on the server (bypassing DNS/firewall) before assuming the routing layer is broken |
+| Deploy API returns 422 "Unsupported storage pattern detected" | App calls `window.storage`, an API specific to Claude Artifacts' sandbox that doesn't exist on hostnsoft | Replace `window.storage` calls with SQLite (`better-sqlite3`) or PGlite (`@electric-sql/pglite`), writing under `DATA_DIR`, then redeploy — see `SKILL.md`'s Storage requirements section |
+| App keeps restarting and eventually gets marked failed; task events show "OOM Killed" (exit code 137) | The app exceeded its memory allocation — apps using an embedded database need more memory than a plain app, and the default allocation may not account for other memory-heavy dependencies | Memory is auto-detected based on whether the app declares an embedded-database dependency (gets a higher allocation automatically). If an app is OOM-killed despite this, it likely has some other heavy dependency the auto-detection doesn't account for — check actual usage via the deployment's resource utilization stats and request a higher allocation explicitly |
+| An AI coding agent refuses to call the deploy API, citing an inability to reach the domain, or that the request looks unverifiable | The agent is running in a network-sandboxed environment (common for browser-based AI coding tools) whose outbound domain allowlist doesn't include the deploy endpoint by default | Check the agent platform's network/domain allowlist settings and add the deploy domain (or allow all domains, if acceptable for your use case) — this is a setting on the agent's side, not something fixable from within the conversation. Note that settings changes often only apply to new sessions, not the current one. Agents running with full local/machine network access (e.g. a local terminal-based agent) don't have this restriction |
+
+## Escalation
+
+If the issue isn't covered above, gather the following before requesting support:
+- The exact API response from the deploy call
+- Application logs from the most recent deployment attempt
+- The generated deployment configuration (if inspectable)
