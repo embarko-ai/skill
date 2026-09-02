@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Package an app directory and deploy it to hostnsoft.
+# Package an app directory and deploy it to Embarko.
 #
 # Usage:
 #   ./deploy.sh [path-to-app-dir] [app-name] [version]
@@ -7,20 +7,20 @@
 # All args are optional:
 #   - app-dir defaults to the current directory
 #   - app-name defaults to the "name" field in package.json (sanitized), or the folder name
-#     — must match a project already created on the hostnsoft dashboard
+#     — must match a project already created on the Embarko dashboard
 #   - version defaults to the current git short SHA if in a git repo, else a timestamp
 #
 # Always pass a unique version — never reuse a floating tag such as "latest".
 #
 # Required environment variable:
-#   HOSTNSOFT_TOKEN   — your company deploy token (see SKILL.md if you don't have one yet)
+#   DEPLOY_TOKEN   — your company deploy token (see SKILL.md if you don't have one yet)
 
 set -euo pipefail
 
 APP_DIR="${1:-.}"
 DEPLOY_URL="https://ship.hostnsoft.com/apps"
 
-: "${HOSTNSOFT_TOKEN:?Set HOSTNSOFT_TOKEN in your environment before running this script}"
+: "${DEPLOY_TOKEN:?Set DEPLOY_TOKEN in your environment before running this script}"
 
 # Infer app name if not passed explicitly
 if [[ -n "${2:-}" ]]; then
@@ -48,19 +48,19 @@ fi
 
 TARBALL="/tmp/${APP_NAME}.tar.gz"
 
-# Fail fast locally if the app uses window.storage — hostnsoft's deploy
+# Fail fast locally if the app uses window.storage — Embarko's deploy
 # API rejects this at build time anyway, but catching it here saves a
 # packaging + upload round trip.
 if grep -rlF --include='*.js' --include='*.jsx' --include='*.ts' --include='*.tsx' \
     --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=build \
-    -- 'window.storage' "$APP_DIR" >/tmp/hostnsoft-storage-check 2>/dev/null; then
-  echo "ERROR: found window.storage usage (not supported on hostnsoft) in:" >&2
-  cat /tmp/hostnsoft-storage-check >&2
+    -- 'window.storage' "$APP_DIR" >/tmp/embarko-storage-check 2>/dev/null; then
+  echo "ERROR: found window.storage usage (not supported on Embarko) in:" >&2
+  cat /tmp/embarko-storage-check >&2
   echo "See SKILL.md's Storage requirements section for the fix (SQLite or PGlite)." >&2
-  rm -f /tmp/hostnsoft-storage-check
+  rm -f /tmp/embarko-storage-check
   exit 1
 fi
-rm -f /tmp/hostnsoft-storage-check
+rm -f /tmp/embarko-storage-check
 
 echo "==> App: ${APP_NAME}  Version: ${VERSION}"
 echo "==> Packaging ${APP_DIR} -> ${TARBALL}"
@@ -75,7 +75,7 @@ tar -czf "$TARBALL" \
 
 echo "==> Deploying to ${DEPLOY_URL}"
 RESPONSE=$(curl -sS -X POST "$DEPLOY_URL" \
-  -H "Authorization: Bearer ${HOSTNSOFT_TOKEN}" \
+  -H "Authorization: Bearer ${DEPLOY_TOKEN}" \
   -H "X-App-Name: ${APP_NAME}" \
   -H "X-App-Version: ${VERSION}" \
   -F "source=@${TARBALL}")

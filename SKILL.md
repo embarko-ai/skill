@@ -1,11 +1,11 @@
 ---
-name: hostnsoft-deploy
-description: Deploys an application to hostnsoft, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app.
+name: deploy
+description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app.
 ---
 
-# hostnsoft Deploy
+# Embarko Deploy
 
-Deploys an application to hostnsoft: a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL.
+Deploys an application to Embarko: a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL.
 
 **Do not skip verification.** A successful API response confirms the deployment was *accepted* — it does not confirm the app is *running*. Always verify before reporting the deployment as complete (Step 4).
 
@@ -13,45 +13,45 @@ Deploys an application to hostnsoft: a managed hosting environment that builds y
 
 Set this as an environment variable before deploying:
 
-- `HOSTNSOFT_TOKEN` — your company's deploy token
+- `DEPLOY_TOKEN` — your company's deploy token
 
-**If `HOSTNSOFT_TOKEN` isn't set and no other stored token is found**
-(check for one in `~/.hostnsoft/credentials` too, if that convention is
+**If `DEPLOY_TOKEN` isn't set and no other stored token is found**
+(check for one in `~/.embarko/credentials` too, if that convention is
 in use): don't attempt to deploy, and don't try to obtain a token
 automatically — tell the person directly:
 
 > "You'll need a deploy token first. Go to `https://hostnsoft.com/login`,
 > sign in, open your company's Tokens page, and create one. Then paste it
-> here, or set it as `HOSTNSOFT_TOKEN` in your environment."
+> here, or set it as `DEPLOY_TOKEN` in your environment."
 
 Wait for them to paste the token or confirm the env var is set — there's
 no automatic detection of this step; the person closes the loop
 themselves. Once you have it, this only needs to happen once per
 machine/session — don't ask again on a later deploy in the same
-environment if `HOSTNSOFT_TOKEN` (or the stored credential) is already
+environment if `DEPLOY_TOKEN` (or the stored credential) is already
 present.
 
-## hostnsoft requirements
+## Embarko requirements
 
 For an app to deploy and run correctly:
 
-1. It must read its listening port from the `PORT` environment variable — hostnsoft assigns this dynamically.
+1. It must read its listening port from the `PORT` environment variable — Embarko assigns this dynamically.
 2. It must bind to `0.0.0.0`, not `127.0.0.1`/`localhost`.
-3. No Dockerfile should be present — hostnsoft's build system detects the language/framework automatically and builds the image itself.
+3. No Dockerfile should be present — Embarko's build system detects the language/framework automatically and builds the image itself.
 
 ## Database support (optional)
 
 Apps that need a relational database can use an embedded, in-process database rather than requiring a separately hosted one. If your app needs this:
 
 1. Add `@electric-sql/pglite` as a dependency.
-2. Point it at the `DATA_DIR` environment variable, which hostnsoft provides automatically and persists across redeploys:
+2. Point it at the `DATA_DIR` environment variable, which Embarko provides automatically and persists across redeploys:
    ```js
    const { PGlite } = require('@electric-sql/pglite');
    const db = new PGlite(`${process.env.DATA_DIR}/pglite`);
    ```
 No separate database provisioning, connection strings, or credentials are required. Note that this is a single-instance embedded database, not a shared/scalable one — it's intended for apps that run as a single instance.
 
-hostnsoft automatically detects the `@electric-sql/pglite` dependency at deploy time and allocates more memory to the app than a non-database app gets by default — no configuration needed on your end. If your app still runs out of memory (visible as repeated crash-restarts), it likely has other memory-heavy dependencies beyond the database and may need a higher allocation — mention this if it comes up during a deploy.
+Embarko automatically detects the `@electric-sql/pglite` dependency at deploy time and allocates more memory to the app than a non-database app gets by default — no configuration needed on your end. If your app still runs out of memory (visible as repeated crash-restarts), it likely has other memory-heavy dependencies beyond the database and may need a higher allocation — mention this if it comes up during a deploy.
 
 ## Storage requirements
 
@@ -76,14 +76,14 @@ tar -tzf /tmp/<app-name>.tar.gz | head -5
 
 ## Step 2: Determine the app name and version
 
-- **App name**: lowercase letters, numbers, and dashes only. This must match a project already created on the hostnsoft dashboard — infer it from the project's manifest file (e.g. `package.json`'s `name` field) or the project folder name, but if the deploy call fails because no matching project exists, tell the person to create one on the dashboard first rather than guessing at a different name.
+- **App name**: lowercase letters, numbers, and dashes only. This must match a project already created on the Embarko dashboard — infer it from the project's manifest file (e.g. `package.json`'s `name` field) or the project folder name, but if the deploy call fails because no matching project exists, tell the person to create one on the dashboard first rather than guessing at a different name.
 - **Version**: always pass an explicit, unique version — a git commit SHA, a semantic version tag, or a timestamp. Do not omit this or reuse a non-unique/floating tag; deployment systems that cache or pull images by tag can serve a stale build if the tag isn't unique per deploy.
 
 ## Step 3: Call the deploy API
 
 ```bash
 curl -X POST "https://ship.hostnsoft.com/apps" \
-  -H "Authorization: Bearer ${HOSTNSOFT_TOKEN}" \
+  -H "Authorization: Bearer ${DEPLOY_TOKEN}" \
   -H "X-App-Name: <app-name>" \
   -H "X-App-Version: <version>" \
   -F "source=@/tmp/<app-name>.tar.gz"
