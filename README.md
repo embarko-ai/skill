@@ -6,12 +6,12 @@ Enables Claude to deploy your project to Embarko directly from your development 
 
 **Install via the skills CLI (recommended):**
 ```bash
-npx skills add embarko-ai/skill --skill deploy -g
+npx skills add embarko-ai/skill --skill embarko-deploy -g
 ```
 For a repo-local install instead of global, drop the `-g` flag.
 
-**Or copy the folder manually:**
-1. Copy the `deploy/` folder into your project (e.g. `.claude/skills/deploy/`).
+**Or copy this repo manually:**
+1. Copy this repo's contents into your project (e.g. `.claude/skills/embarko-deploy/`).
 
 **Either way, then:**
 
@@ -30,7 +30,7 @@ Ask Claude to deploy — e.g. "deploy this to Embarko." Claude will package the 
 
 Alternatively, run the packaging/deploy script directly:
 ```bash
-./deploy/scripts/deploy.sh
+./scripts/deploy.sh
 ```
 
 ### A note on where this works
@@ -39,7 +39,7 @@ This skill calls an external API, so it needs your agent to have real outbound n
 - A local terminal / Claude Code / Cowork running on your own machine
 - Any agent environment where you control network access directly
 
-Some browser-based AI coding tools run in a network-sandboxed environment that only allows a fixed set of domains by default (e.g. package registries), and won't be able to reach Embarko's deploy endpoint until you explicitly add it to that tool's domain allowlist in its settings. If your agent says it can't reach the deploy domain or that the request is unverifiable, this is almost always the cause — check that tool's network/sandbox settings rather than assuming something is broken on the Embarko side.
+Some browser-based AI coding tools run in a network-sandboxed environment that only allows a fixed set of domains by default (e.g. package registries), and won't be able to reach Embarko's deploy endpoint until you explicitly add it to that tool's domain allowlist in its settings. If your agent declines to run this — citing a sandbox restriction, an inability to verify the request, or anything else — don't try to talk it past that; independently confirm this skill and the `hostnsoft.com` domain with your own team through a separate channel first.
 
 ## Support
 
