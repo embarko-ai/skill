@@ -2,6 +2,27 @@
 
 Consult this when a deploy fails or an app doesn't come up healthy after a successful API response.
 
+## API error codes
+
+Every non-2xx response from `POST /apps` includes a machine-readable `code` field alongside the human-readable `error` — branch on `code`, since `error`'s wording can change without notice. `deploy.sh` prints this automatically on failure.
+
+| `code` | HTTP status | Meaning | Fix |
+|---|---|---|---|
+| `unauthorized` | 401 | `DEPLOY_TOKEN` missing, invalid, or revoked | Confirm it's set correctly — see `SKILL.md`'s "Required configuration"; if it used to work, it may have been rotated/revoked on the dashboard |
+| `invalid_app_name` | 400 | `X-App-Name` missing, or doesn't match `^[a-z0-9-]+$` | Use lowercase letters, numbers, and dashes only |
+| `app_name_taken` | 409 | This exact app name already belongs to a **different** company | App names are unique platform-wide (they're also the live subdomain) — pick a different name rather than retrying the same one |
+| `app_name_check_failed` | 502 | Embarko couldn't verify app-name availability (an internal service was unreachable) | Transient — retry once; if it keeps happening, this is on Embarko's side, not the app |
+| `invalid_app_version` | 400 | `X-App-Version` doesn't match `^[a-zA-Z0-9._-]+$` | Use only letters, numbers, dots, dashes, underscores — see Step 2 in `SKILL.md` |
+| `missing_source_file` | 400 | No `source` file in the multipart upload | Confirm the tarball is actually attached (`-F "source=@..."`) and the path exists |
+| `unsupported_storage_pattern` | 422 | App calls `window.storage`, which doesn't exist outside Claude Artifacts' sandbox | See `SKILL.md`'s "Storage requirements" — switch to SQLite or PGlite, write under `DATA_DIR` |
+| `deploy_failed` | 500 | The build or Nomad deploy step itself failed — this is a catch-all, not a specific validation issue | Read the response's `details` field for the actual underlying error (e.g. a build tool failure); the symptom table below covers common causes |
+
+No project needs to exist on the dashboard beforehand — the first deploy of a new app name auto-creates it under your company. `app_name_taken` (not a generic failure) is what tells you the name itself is the problem, not your setup.
+
+## Symptom reference
+
+For failures during the actual build/deploy (`code: "deploy_failed"`, or infrastructure-level issues after the API accepted the request):
+
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Deploy API returns an error about a missing directory or build path | The build tool was invoked with the version tag in place of the source directory | Ensure the build command's directory argument and the image/version tag are passed as separate, correctly-ordered arguments |

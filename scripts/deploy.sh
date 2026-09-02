@@ -7,7 +7,10 @@
 # All args are optional:
 #   - app-dir defaults to the current directory
 #   - app-name defaults to the "name" field in package.json (sanitized), or the folder name
-#     — must match a project already created on the Embarko dashboard
+#     — no project needs to exist beforehand, the first deploy of a new
+#     name auto-creates it; the name is unique platform-wide though (it's
+#     also the live subdomain), so a name already taken by another company
+#     fails with code "app_name_taken" — see scripts/troubleshoot.md
 #   - version defaults to the current git short SHA if in a git repo, else a timestamp
 #
 # Always pass a unique version — never reuse a floating tag such as "latest".
@@ -85,7 +88,15 @@ echo "$RESPONSE"
 rm -f "$TARBALL"
 
 if ! echo "$RESPONSE" | grep -q '"success":true'; then
-  echo "==> Deploy failed — inspect the response above before retrying."
+  # Every error response carries a machine-readable `code` field — surface
+  # it distinctly so it isn't buried in the raw JSON above. See
+  # scripts/troubleshoot.md's error code reference for what each means.
+  CODE=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).code' 2>/dev/null || true)
+  if [[ -n "$CODE" && "$CODE" != "undefined" ]]; then
+    echo "==> Deploy failed (code: ${CODE}) — see scripts/troubleshoot.md before retrying."
+  else
+    echo "==> Deploy failed — inspect the response above before retrying."
+  fi
   exit 1
 fi
 

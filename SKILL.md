@@ -1,5 +1,5 @@
 ---
-name: deploy
+name: embarko-deploy
 description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app.
 ---
 
@@ -76,7 +76,7 @@ tar -tzf /tmp/<app-name>.tar.gz | head -5
 
 ## Step 2: Determine the app name and version
 
-- **App name**: lowercase letters, numbers, and dashes only. This must match a project already created on the Embarko dashboard — infer it from the project's manifest file (e.g. `package.json`'s `name` field) or the project folder name, but if the deploy call fails because no matching project exists, tell the person to create one on the dashboard first rather than guessing at a different name.
+- **App name**: lowercase letters, numbers, and dashes only. No project needs to exist on the dashboard beforehand — the first deploy of a new name auto-creates its project under your company, keyed off your `DEPLOY_TOKEN`. Infer it from the project's manifest file (e.g. `package.json`'s `name` field) or the project folder name. This name is also the live subdomain, so it's unique **platform-wide**: if the call fails with `code: "app_name_taken"`, someone else already has that exact name — pick a different one rather than retrying the same name.
 - **Version**: always pass an explicit, unique version — a git commit SHA, a semantic version tag, or a timestamp. Do not omit this or reuse a non-unique/floating tag; deployment systems that cache or pull images by tag can serve a stale build if the tag isn't unique per deploy.
 
 ## Step 3: Call the deploy API
@@ -98,7 +98,12 @@ Expected success response:
 }
 ```
 
-If the response includes a `warnings` array (e.g. flagging unsupported storage patterns) or a non-2xx status, consult `scripts/troubleshoot.md` before retrying — don't just retry blindly.
+On a non-2xx status, the response always includes a machine-readable `code` field alongside the human-readable `error` — branch on `code`, not on the wording of `error`, which can change:
+```json
+{ "error": "App name \"acme-portal\" is already in use by a different company", "code": "app_name_taken" }
+```
+
+See `scripts/troubleshoot.md`'s error code reference for what each `code` means and how to fix it — don't just retry blindly.
 
 ## Step 4: Verify the deployment
 
