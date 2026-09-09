@@ -15,15 +15,17 @@
 #
 # Always pass a unique version — never reuse a floating tag such as "latest".
 #
-# Required environment variable:
-#   DEPLOY_TOKEN   — your company deploy token (see SKILL.md if you don't have one yet)
+# Optional environment variable:
+#   DEPLOY_TOKEN   — your company deploy token. If unset, this deploys
+#                    ANONYMOUSLY: a live but temporary app (auto-deleted
+#                    after 24h unless later claimed with a real token —
+#                    see SKILL.md for how to get one, including by email
+#                    with no dashboard visit at all).
 
 set -euo pipefail
 
 APP_DIR="${1:-.}"
-DEPLOY_URL="https://ship.hostnsoft.com/apps"
-
-: "${DEPLOY_TOKEN:?Set DEPLOY_TOKEN in your environment before running this script}"
+DEPLOY_URL="https://ship.embarko.ai/apps"
 
 # Infer app name if not passed explicitly
 if [[ -n "${2:-}" ]]; then
@@ -76,9 +78,20 @@ tar -czf "$TARBALL" \
   --exclude='__pycache__' \
   -C "$APP_DIR" .
 
+# Built as an array, not a string — an empty DEPLOY_TOKEN must OMIT the
+# Authorization header entirely (anonymous deploy), not send an empty
+# Bearer value, which the API would reject as an invalid token (401)
+# rather than treating it as anonymous.
+CURL_AUTH_ARGS=()
+if [[ -n "${DEPLOY_TOKEN:-}" ]]; then
+  CURL_AUTH_ARGS=(-H "Authorization: Bearer ${DEPLOY_TOKEN}")
+else
+  echo "==> No DEPLOY_TOKEN set — deploying anonymously (temporary app, see SKILL.md)."
+fi
+
 echo "==> Deploying to ${DEPLOY_URL}"
 RESPONSE=$(curl -sS -X POST "$DEPLOY_URL" \
-  -H "Authorization: Bearer ${DEPLOY_TOKEN}" \
+  "${CURL_AUTH_ARGS[@]}" \
   -H "X-App-Name: ${APP_NAME}" \
   -H "X-App-Version: ${VERSION}" \
   -F "source=@${TARBALL}")
@@ -100,10 +113,42 @@ if ! echo "$RESPONSE" | grep -q '"success":true'; then
   exit 1
 fi
 
-if echo "$RESPONSE" | grep -q '"warnings":\[{' ; then
-  echo "==> Deploy succeeded but returned warnings — review them before considering this fully done:"
-  echo "$RESPONSE"
+ORPHAN_MESSAGE=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).orphan?.message' 2>/dev/null || true)
+if [[ -n "$ORPHAN_MESSAGE" && "$ORPHAN_MESSAGE" != "undefined" ]]; then
+  echo ""
+  echo "==> This is a TEMPORARY (anonymous) deploy:"
+  echo "$ORPHAN_MESSAGE"
+fi
+
+# Deploy is accepted (202) at this point, not yet live — the build/deploy
+# itself runs in the background. Poll statusUrl until it's no longer
+# in_progress rather than reporting success off the 202 alone.
+STATUS_URL=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).statusUrl' 2>/dev/null || true)
+LOGS_URL=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).logsUrl' 2>/dev/null || true)
+
+if [[ -z "$STATUS_URL" || "$STATUS_URL" == "undefined" ]]; then
+  echo ""
+  echo "==> Deploy accepted, but no statusUrl in the response — verify the app is actually running before considering this complete."
+  exit 0
 fi
 
 echo ""
-echo "==> Deploy accepted. Verify the app is actually running before considering this complete."
+echo "==> Deploy accepted — polling ${STATUS_URL} for build/deploy progress..."
+for _ in $(seq 1 60); do
+  STATUS_RESPONSE=$(curl -sS "${CURL_AUTH_ARGS[@]}" "$STATUS_URL")
+  DEPLOY_STATUS=$(echo "$STATUS_RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).deploy.status' 2>/dev/null || echo "unknown")
+  if [[ "$DEPLOY_STATUS" == "success" ]]; then
+    echo "==> Deploy succeeded."
+    exit 0
+  elif [[ "$DEPLOY_STATUS" == "failed" ]]; then
+    echo "==> Deploy failed. Logs (${LOGS_URL}):"
+    curl -sS "${CURL_AUTH_ARGS[@]}" "$LOGS_URL"
+    echo ""
+    echo "==> See scripts/troubleshoot.md (or https://embarko.ai/troubleshoot.md) for this error, then redeploy."
+    exit 1
+  fi
+  sleep 10
+done
+
+echo "==> Still in progress after 10 minutes of polling — check ${STATUS_URL} manually before assuming something is wrong."
+exit 1

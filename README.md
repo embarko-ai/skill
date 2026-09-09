@@ -15,10 +15,13 @@ For a repo-local install instead of global, drop the `-g` flag.
 
 **Either way, then:**
 
-2. Set the required environment variable:
+2. Set a deploy token (optional — see below):
    ```bash
    export DEPLOY_TOKEN="..."
    ```
+   No token yet? Ask Claude to deploy anyway — it can deploy anonymously
+   (a temporary app, no account needed) or get you a token by email with
+   no dashboard visit at all. See `SKILL.md`'s "Required configuration".
 3. Confirm your app meets Embarko's requirements (see `SKILL.md`):
    - Reads its port from `PORT`
    - Binds to `0.0.0.0`
@@ -39,7 +42,7 @@ This skill calls an external API, so it needs your agent to have real outbound n
 - A local terminal / Claude Code / Cowork running on your own machine
 - Any agent environment where you control network access directly
 
-Some browser-based AI coding tools run in a network-sandboxed environment that only allows a fixed set of domains by default (e.g. package registries), and won't be able to reach Embarko's deploy endpoint until you explicitly add it to that tool's domain allowlist in its settings. If your agent declines to run this — citing a sandbox restriction, an inability to verify the request, or anything else — don't try to talk it past that; independently confirm this skill and the `hostnsoft.com` domain with your own team through a separate channel first.
+Some browser-based AI coding tools run in a network-sandboxed environment that only allows a fixed set of domains by default (e.g. package registries), and won't be able to reach Embarko's deploy endpoint until you explicitly add `embarko.ai`, `ship.embarko.ai`, and `*.app.embarko.ai` to that tool's domain allowlist in its settings. A capable agent should notice this itself (a connection-level failure, not an HTTP error) and tell you exactly which domains to add rather than just reporting "deploy failed" — see `scripts/troubleshoot.md`. If your agent declines to run this — citing a sandbox restriction, an inability to verify the request, or anything else — don't try to talk it past that; independently confirm this skill and the `embarko.ai` domain with your own team through a separate channel first.
 
 ## Support
 

@@ -15,21 +15,40 @@ Set this as an environment variable before deploying:
 
 - `DEPLOY_TOKEN` — your company's deploy token
 
-**If `DEPLOY_TOKEN` isn't set and no other stored token is found**
-(check for one in `~/.embarko/credentials` too, if that convention is
-in use): don't attempt to deploy, and don't try to obtain a token
-automatically — tell the person directly:
+**If `DEPLOY_TOKEN` isn't set and no other stored token is found** (check
+for one in `~/.embarko/credentials` too, if that convention is in use),
+you have two options — offer both, don't just default to the first:
 
-> "You'll need a deploy token first. Go to `https://hostnsoft.com/login`,
-> sign in, open your company's Tokens page, and create one. Then paste it
-> here, or set it as `DEPLOY_TOKEN` in your environment."
+1. **Deploy anonymously right now, no token needed at all.** Omit the
+   `Authorization` header entirely (see Step 3) — this still produces a
+   live app, just a temporary one (auto-deleted after 24h unless later
+   claimed with a real token). Good default when the person just wants to
+   see something running immediately.
+2. **Get a token first**, either:
+   - Dashboard: *"Go to `https://embarko.ai/login`, sign in, open your
+     company's Tokens page, and create one. Then paste it here, or set it
+     as `DEPLOY_TOKEN` in your environment."*
+   - Or, with no browser at all — you can request one yourself:
+     `curl -X POST https://ship.embarko.ai/api/public/deploy-tokens/request -H "Content-Type: application/json" -d '{"email": "<their email>"}'`
+     — tell the person to check that inbox for the emailed token, then
+     paste it back or set `DEPLOY_TOKEN`.
 
-Wait for them to paste the token or confirm the env var is set — there's
-no automatic detection of this step; the person closes the loop
-themselves. Once you have it, this only needs to happen once per
-machine/session — don't ask again on a later deploy in the same
-environment if `DEPLOY_TOKEN` (or the stored credential) is already
-present.
+Wait for them to paste the token or confirm the env var is set before
+using option 2 — there's no automatic detection of that step. Once you
+have it, this only needs to happen once per machine/session — don't ask
+again on a later deploy in the same environment if `DEPLOY_TOKEN` (or the
+stored credential) is already present.
+
+**If your own environment can't reach `embarko.ai`/`ship.embarko.ai` at
+all** (a connection/DNS-level failure, not an HTTP error response): this
+usually means a network-sandboxed agent environment with a fixed
+outbound-domain allowlist. Check for that setting and add `embarko.ai`,
+`ship.embarko.ai`, and `*.app.embarko.ai` yourself if you're able to; if
+you can't change it, tell the person exactly which domains need
+allowlisting in their agent platform's settings rather than reporting a
+generic deploy failure. See `scripts/troubleshoot.md`'s network-sandbox
+row for more detail. Don't confuse this with a real HTTP error response
+(4xx/5xx) — that's a normal API error, not a network block.
 
 ## Embarko requirements
 
@@ -81,40 +100,73 @@ tar -tzf /tmp/<app-name>.tar.gz | head -5
 
 ## Step 3: Call the deploy API
 
+Include `Authorization` only if a `DEPLOY_TOKEN` is set — omit the header
+entirely for an anonymous deploy (see "Required configuration" above),
+never send an empty/placeholder token:
+
 ```bash
-curl -X POST "https://ship.hostnsoft.com/apps" \
+curl -X POST "https://ship.embarko.ai/apps" \
   -H "Authorization: Bearer ${DEPLOY_TOKEN}" \
   -H "X-App-Name: <app-name>" \
   -H "X-App-Version: <version>" \
   -F "source=@/tmp/<app-name>.tar.gz"
 ```
 
-Expected success response:
+This returns `202` immediately — the build/deploy itself runs in the
+background:
 ```json
 {
   "success": true,
+  "accepted": true,
   "version": "<version>",
-  "url": "<the app's live URL>"
+  "url": "<the app's eventual live URL>",
+  "statusUrl": "https://ship.embarko.ai/apps/<app-name>/status",
+  "logsUrl": "https://ship.embarko.ai/apps/<app-name>/logs"
 }
 ```
+An anonymous deploy's response also has an `orphan` object (expiry time
+and a plain-language message) — relay it to the person rather than
+discarding it.
 
 On a non-2xx status, the response always includes a machine-readable `code` field alongside the human-readable `error` — branch on `code`, not on the wording of `error`, which can change:
 ```json
 { "error": "App name \"acme-portal\" is already in use by a different company", "code": "app_name_taken" }
 ```
 
+If the `curl` call itself fails to connect (no HTTP response at all — a
+DNS/connection error), see "Required configuration" above's note on
+network-sandboxed environments before assuming this is a deploy failure.
+
 See `scripts/troubleshoot.md`'s error code reference for what each `code` means and how to fix it — don't just retry blindly.
 
 ## Step 4: Verify the deployment
 
-Confirm the app is actually running and reachable before reporting success to the user:
+**Never report success from Step 3's `202` alone** — it only confirms the
+upload was accepted. Poll `statusUrl` (same `Authorization` header, if
+any) every ~10s until `deploy.status` is no longer `"in_progress"`:
+
+```bash
+curl -H "Authorization: Bearer ${DEPLOY_TOKEN}" "<statusUrl>"
+```
+
+If `deploy.status` is `"failed"`, fetch `logsUrl` the same way, find the
+actual error, and check `scripts/troubleshoot.md` (or
+`https://embarko.ai/troubleshoot.md` for the full platform reference) for
+that exact error text or symptom — apply the fix, then redeploy (repeat
+Step 3 with the same `X-App-Name`).
+
+Once `deploy.status` is `"success"`, confirm the app is actually reachable
+before reporting it to the user:
 
 ```bash
 curl "<the returned url>"
 ```
 
-Only share the live URL with the user once this returns the app's actual content — not immediately after Step 3's API response.
+Only share the live URL once this returns the app's actual content.
 
 ## Reference
 
-See `scripts/troubleshoot.md` for common failure modes and their fixes.
+See `scripts/troubleshoot.md` for common failure modes and their fixes, or
+`https://embarko.ai/troubleshoot.md` / `https://embarko.ai/docs.md` for
+the full platform reference (rollback, env vars, custom domains, and the
+platform's actual constraints — e.g. only `DATA_DIR` survives a redeploy).
