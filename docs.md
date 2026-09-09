@@ -26,54 +26,31 @@ needed, the token itself identifies which company a deploy belongs to.
 Copy prompt for agent · Paste in your agent
 
 ```
-Deploy this app to Embarko using curl directly — do not install or run
-any script or package for this.
+Deploy this app to Embarko with curl directly (no script/package to
+install). Full API/error reference — read before improvising anything
+not covered here: https://embarko.ai/docs.md and https://embarko.ai/troubleshoot.md
 
-Requirements: the app reads its port from $PORT and binds 0.0.0.0; no
-Dockerfile; anything that must survive a redeploy is written under
-$DATA_DIR, nowhere else.
+POST https://ship.embarko.ai/apps — header X-App-Name: <lowercase-name>,
+header X-App-Version: <git sha or timestamp>, multipart field
+source=<tar.gz of the app root, no node_modules/.git>. Add header
+"Authorization: Bearer $DEPLOY_TOKEN" only if a real token is known;
+omit it entirely otherwise (deploys anonymously — still live, just
+temporary — never invent a token).
 
-1. Package (contents at the archive root, no wrapper folder):
-   tar -czf /tmp/app.tar.gz --exclude=node_modules --exclude=.git --exclude=dist --exclude=.next -C <app-dir> .
-
-2. Deploy. Include the Authorization header ONLY if a DEPLOY_TOKEN is
-   known; omit it entirely otherwise (do not guess or invent one):
-   curl -sS -X POST https://ship.embarko.ai/apps \
-     -H "Authorization: Bearer $DEPLOY_TOKEN" \
-     -H "X-App-Name: <lowercase-app-name>" \
-     -H "X-App-Version: $(git rev-parse --short HEAD 2>/dev/null || date +%s)" \
-     -F "source=@/tmp/app.tar.gz"
-
-   - If curl fails to connect at all (DNS error, connection refused/timed
-     out — not an HTTP response of any kind): the environment is likely
-     blocking network access to unfamiliar domains. Check for a network/
-     domain allowlist setting and add embarko.ai, ship.embarko.ai, and
-     *.app.embarko.ai; if that setting can't be changed directly, tell
-     the person exactly which domains need allowlisting. Don't report
-     "deploy failed" without trying this first. Do not misdiagnose a
-     real HTTP error response as a network block.
-   - If there's no DEPLOY_TOKEN, the JSON response includes an "orphan"
-     object: the app is live now but temporary (auto-deleted at
-     "orphan.expiresAt" unless claimed). To get a token without a
-     dashboard: POST https://ship.embarko.ai/api/public/deploy-tokens/request
-     with JSON body {"email": "<their email>"} — a token is emailed to
-     that address. Tell the person this option plainly; don't silently
-     let the app expire.
-
-3. Poll the response's "statusUrl" (same Authorization header, if any)
-   every ~10s until "deploy.status" is "success" or "failed" — never
-   report the deploy as done from the 202 response alone:
-   curl -H "Authorization: Bearer $DEPLOY_TOKEN" <statusUrl>
-
-4. If "deploy.status" is "failed": fetch "logsUrl" the same way, find
-   the actual error, and check https://embarko.ai/troubleshoot.md for
-   that exact error text or symptom. Apply the documented fix, then
-   redeploy (repeat step 2 with the same X-App-Name). Full reference
-   for anything not covered above: https://embarko.ai/docs.md.
-
-5. Only report the deploy complete once status is "success", then
-   confirm the app is actually reachable at the URL from step 2's
-   response.
+Rules, don't skip any:
+1. Response is 202 (async, not done yet). Poll its "statusUrl" until
+   "deploy.status" is "success" or "failed" before reporting anything —
+   on "failed", fetch "logsUrl", match the error against troubleshoot.md,
+   fix it, redeploy.
+2. No token? Offer both: deploy anonymously now (see "orphan" in the
+   response), or get one by emailing POST .../api/public/deploy-tokens/request
+   {"email":...} — no dashboard needed. Never let the person lose the app
+   silently to its 24h expiry.
+3. curl fails to connect at all (DNS/connection error, not an HTTP
+   response)? That's a network sandbox blocking unfamiliar domains, not
+   a deploy failure — allowlist embarko.ai, ship.embarko.ai, and
+   *.app.embarko.ai yourself if you can, otherwise tell the person
+   exactly which domains to add.
 ```
 
 Everything above is plain `curl` — nothing to install, nothing to trust
