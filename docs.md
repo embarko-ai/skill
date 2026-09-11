@@ -28,7 +28,7 @@ Copy prompt for agent · Paste in your agent
 ```
 Deploy this app to Embarko with curl directly (no script/package to
 install). Full API/error reference — read before improvising anything
-not covered here: https://embarko.ai/docs.md and https://embarko.ai/troubleshoot.md
+not covered here: https://embarko.ai/doc and https://embarko.ai/troubleshoot
 
 POST https://ship.embarko.ai/apps — header X-App-Name: <lowercase-name>,
 header X-App-Version: <git sha or timestamp>, multipart field
@@ -124,7 +124,7 @@ Always returns the same generic `202` regardless of whether the email has
 an account — one is created (with a company named after the email) if
 none exists. Check that inbox for a new deploy token per company. Rate
 limited (per-email, per-IP, and globally) — see
-[`troubleshoot.md`](https://embarko.ai/troubleshoot.md).
+[`troubleshoot.md`](https://embarko.ai/troubleshoot).
 
 Deploy tokens authenticate deploys only — they are **not used to sign in**
 to the dashboard itself.
@@ -228,7 +228,7 @@ curl "https://ship.embarko.ai/apps/my-app/logs?stream=stderr" -H "Authorization:
 ```
 
 If `deploy.status` is `"failed"`: read the logs, match the actual error
-text against [`troubleshoot.md`](https://embarko.ai/troubleshoot.md), apply
+text against [`troubleshoot.md`](https://embarko.ai/troubleshoot), apply
 the fix, and redeploy under the same `X-App-Name`.
 
 ## [Storage requirements](#storage-requirements)
@@ -243,7 +243,7 @@ deploy time (`422`, before any build is attempted):
   "code": "unsupported_storage_pattern",
   "detail": "This app calls window.storage, an API specific to Claude Artifacts' sandbox...",
   "filesDetected": ["src/app.jsx"],
-  "docs": "https://embarko.ai/docs.md#storage-requirements"
+  "docs": "https://embarko.ai/doc"
 }
 ```
 
@@ -251,7 +251,7 @@ Use SQLite (`better-sqlite3`) for simple key-value/document data, or
 PGlite (`@electric-sql/pglite`) for relational data needing joins —
 either way, write to a path under the `DATA_DIR` environment variable so
 data persists across redeploys. See
-[`troubleshoot.md`](https://embarko.ai/troubleshoot.md) if you're seeing
+[`troubleshoot.md`](https://embarko.ai/troubleshoot) if you're seeing
 data disappear on redeploy even without `window.storage` — writing
 outside `DATA_DIR` at all has the same effect.
 
@@ -279,5 +279,5 @@ Example:
 
 For anything beyond `POST /apps` itself (rollback, env vars, custom
 domains, memory, the platform's actual constraints), see the full
-platform reference at [`https://embarko.ai/docs.md`](https://embarko.ai/docs.md)
-and [`https://embarko.ai/troubleshoot.md`](https://embarko.ai/troubleshoot.md).
+platform reference at [`https://embarko.ai/doc`](https://embarko.ai/doc)
+and [`https://embarko.ai/troubleshoot`](https://embarko.ai/troubleshoot).

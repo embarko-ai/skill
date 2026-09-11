@@ -42,12 +42,32 @@ stored credential) is already present.
 **If your own environment can't reach `embarko.ai`/`ship.embarko.ai` at
 all** (a connection/DNS-level failure, not an HTTP error response): this
 usually means a network-sandboxed agent environment with a fixed
-outbound-domain allowlist. Check for that setting and add `embarko.ai`,
-`ship.embarko.ai`, and `*.app.embarko.ai` yourself if you're able to; if
-you can't change it, tell the person exactly which domains need
-allowlisting in their agent platform's settings rather than reporting a
-generic deploy failure. See `scripts/troubleshoot.md`'s network-sandbox
-row for more detail. Don't confuse this with a real HTTP error response
+outbound-domain allowlist (e.g. Claude's cloud sandbox — Cowork, Claude
+Code on the web, skills with code execution — proxies all outbound
+traffic through one). Don't just report a generic deploy failure — give
+the precise, actionable fix:
+
+1. Check for that setting and add `embarko.ai`, `ship.embarko.ai`, and
+   `*.app.embarko.ai` yourself if you're able to. **In Claude
+   specifically**: this is an org-admin setting at *Organization
+   settings → Capabilities → domain allowlist* (None / Package managers
+   only / All domains, or a custom list) — Team/Enterprise orgs default
+   to "package managers only", so this is commonly the actual cause.
+   Changing it **only applies to new conversations**, not the current
+   one — say so, so the person doesn't expect an in-place fix.
+2. If you can't change that setting yourself (most agents can't — it's
+   an org-admin decision, not something to self-serve around), tell the
+   person exactly the above: the three domains, and that exact settings
+   path.
+3. Either way, mention the fallback: the person (or a non-sandboxed
+   agent — a local terminal, or one with full machine network access)
+   can run the exact same deploy unchanged from an environment with
+   normal network access — nothing about the command itself changes.
+
+See `scripts/troubleshoot.md`'s network-sandbox row for more detail, and
+`scripts/deploy.sh` for this same check made deterministic (it probes
+connectivity before packaging anything, so this never wastes a build/
+upload cycle first). Don't confuse this with a real HTTP error response
 (4xx/5xx) — that's a normal API error, not a network block.
 
 ## Embarko requirements
@@ -151,7 +171,7 @@ curl -H "Authorization: Bearer ${DEPLOY_TOKEN}" "<statusUrl>"
 
 If `deploy.status` is `"failed"`, fetch `logsUrl` the same way, find the
 actual error, and check `scripts/troubleshoot.md` (or
-`https://embarko.ai/troubleshoot.md` for the full platform reference) for
+`https://embarko.ai/troubleshoot` for the full platform reference) for
 that exact error text or symptom — apply the fix, then redeploy (repeat
 Step 3 with the same `X-App-Name`).
 
@@ -164,9 +184,41 @@ curl "<the returned url>"
 
 Only share the live URL once this returns the app's actual content.
 
+## Submitting feedback or a feature request
+
+If something about deploying was confusing, broken, or missing — or the
+person just wants to suggest something — send it, don't just mention it
+in passing. This is the same auth as Step 4's status/logs check: a token
+is required once the app is claimed, optional while it's still an
+anonymous orphan.
+
+```bash
+curl -X POST "https://ship.embarko.ai/apps/<app-name>/customer-query" \
+  -H "Authorization: Bearer ${DEPLOY_TOKEN}" \
+  -H "X-Agent-Name: <your agent's name, e.g. Claude Code>" \
+  -H "Content-Type: application/json" \
+  -d '{"type": "feature", "message": "<what happened or what would help>"}'
+```
+
+`type` is `"feature"`, `"feedback"`, or `"other"`. `X-Agent-Name` is
+required and free text — identify yourself honestly (e.g. "Claude Code",
+"Claude in [product]"), there's no fixed list to match against. If
+there's no app context yet (nothing deployed, or the person wants to
+send this without you having touched their code at all), use the fully
+anonymous path instead — no token, no app name, just an email:
+
+```bash
+curl -X POST "https://ship.embarko.ai/api/public/customer-query" \
+  -H "Content-Type: application/json" \
+  -d '{"type": "feedback", "message": "<...>", "email": "<their email>"}'
+```
+
+Both return `{"id": "..."}` on success (`201`) — that's confirmation
+enough, no need to verify further.
+
 ## Reference
 
 See `scripts/troubleshoot.md` for common failure modes and their fixes, or
-`https://embarko.ai/troubleshoot.md` / `https://embarko.ai/docs.md` for
+`https://embarko.ai/troubleshoot` / `https://embarko.ai/doc` for
 the full platform reference (rollback, env vars, custom domains, and the
 platform's actual constraints — e.g. only `DATA_DIR` survives a redeploy).

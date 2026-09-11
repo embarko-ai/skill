@@ -27,6 +27,39 @@ set -euo pipefail
 APP_DIR="${1:-.}"
 DEPLOY_URL="https://ship.embarko.ai/apps"
 
+# Fail-fast connectivity probe, BEFORE packaging anything. A network-
+# sandboxed agent environment (a fixed outbound-domain allowlist — common
+# for browser/cloud-based AI coding tools, e.g. Claude's cloud sandbox)
+# fails at the CONNECTION level here, distinct from a real HTTP response
+# (even a 404/405 from this GET means the network path itself is fine —
+# this endpoint only accepts POST, so a non-2xx status is expected and
+# irrelevant; only a curl-level connection failure matters). Checking
+# this deterministically, before any packaging/upload work, means every
+# agent gives the same precise remedy instead of guessing after a
+# confusing failure mid-deploy.
+if ! curl -sS --connect-timeout 5 -o /dev/null "$DEPLOY_URL" 2>/tmp/embarko-probe-error; then
+  echo "==> ERROR: cannot reach ship.embarko.ai at all (connection/DNS failure, not an HTTP error)." >&2
+  echo "    This is almost always a network-sandboxed agent environment with a fixed" >&2
+  echo "    outbound-domain allowlist, not a real Embarko problem." >&2
+  echo "" >&2
+  echo "    Fix — pick one:" >&2
+  echo "    1. If you can change your agent platform's network settings, allow these" >&2
+  echo "       three domains: embarko.ai, ship.embarko.ai, *.app.embarko.ai" >&2
+  echo "       (In Claude specifically: Organization settings -> Capabilities ->" >&2
+  echo "       domain allowlist -> add them, or switch to \"All domains\". This is an" >&2
+  echo "       org-admin setting, and it only applies to NEW conversations/sessions —" >&2
+  echo "       start a fresh one after changing it.)" >&2
+  echo "    2. If you can't change that setting yourself, tell the person running you" >&2
+  echo "       exactly the above — the three domains and that exact settings path —" >&2
+  echo "       instead of reporting a generic deploy failure." >&2
+  echo "    3. Or ask them to run this exact script from an environment with normal" >&2
+  echo "       network access instead (their own machine, or any agent that isn't" >&2
+  echo "       sandboxed) — nothing else needs to change." >&2
+  rm -f /tmp/embarko-probe-error
+  exit 1
+fi
+rm -f /tmp/embarko-probe-error
+
 # Infer app name if not passed explicitly
 if [[ -n "${2:-}" ]]; then
   APP_NAME="$2"
@@ -144,7 +177,7 @@ for _ in $(seq 1 60); do
     echo "==> Deploy failed. Logs (${LOGS_URL}):"
     curl -sS "${CURL_AUTH_ARGS[@]}" "$LOGS_URL"
     echo ""
-    echo "==> See scripts/troubleshoot.md (or https://embarko.ai/troubleshoot.md) for this error, then redeploy."
+    echo "==> See scripts/troubleshoot.md (or https://embarko.ai/troubleshoot) for this error, then redeploy."
     exit 1
   fi
   sleep 10
