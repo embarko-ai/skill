@@ -208,7 +208,7 @@ curl -X POST "https://ship.embarko.ai/apps" \
 ## Reference
 
 `scripts/troubleshoot.md` for common failure modes and their fixes.
-`https://embarko.ai/doc` is the canonical platform reference — the full
+`https://embarko.ai/docs` is the canonical platform reference — the full
 API, rollback, env vars, custom domains, and the platform's actual
 constraints. Prefer it over this file for anything not covered here, and
 trust the live API's behaviour over either if they ever disagree.

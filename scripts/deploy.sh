@@ -10,7 +10,7 @@
 #     — no project needs to exist beforehand, the first deploy of a new
 #     name auto-creates it; the name is unique platform-wide though (it's
 #     also the live subdomain), so a name already taken by another company
-#     fails with code "app_name_taken" — see scripts/troubleshoot.md
+#     fails with code "app_name_taken" — see https://embarko.ai/troubleshoot
 #   - version defaults to the current git short SHA if in a git repo, else a timestamp
 #
 # Always pass a unique version — never reuse a floating tag such as "latest".
@@ -19,8 +19,8 @@
 #   DEPLOY_TOKEN   — your company deploy token. If unset, this deploys
 #                    ANONYMOUSLY: a live but temporary app (auto-deleted
 #                    after 24h unless later claimed with a real token —
-#                    see SKILL.md for how to get one, including by email
-#                    with no dashboard visit at all).
+#                    see https://embarko.ai/docs for how to get one,
+#                    including by email with no dashboard visit at all).
 #   EMBARKO_LP_VARIANT
 #                  — landing-page attribution only: which marketing page
 #                    produced this deploy. Sent as the `lp_variant` header,
@@ -101,7 +101,8 @@ if grep -rlF --include='*.js' --include='*.jsx' --include='*.ts' --include='*.ts
     -- 'window.storage' "$APP_DIR" >/tmp/embarko-storage-check 2>/dev/null; then
   echo "ERROR: found window.storage usage (not supported on Embarko) in:" >&2
   cat /tmp/embarko-storage-check >&2
-  echo "See SKILL.md's Storage requirements section for the fix (SQLite or PGlite)." >&2
+  echo "Use SQLite (better-sqlite3) or PGlite instead, writing under DATA_DIR." >&2
+  echo "Details: https://embarko.ai/docs" >&2
   rm -f /tmp/embarko-storage-check
   exit 1
 fi
@@ -126,7 +127,8 @@ CURL_AUTH_ARGS=()
 if [[ -n "${DEPLOY_TOKEN:-}" ]]; then
   CURL_AUTH_ARGS=(-H "Authorization: Bearer ${DEPLOY_TOKEN}")
 else
-  echo "==> No DEPLOY_TOKEN set — deploying anonymously (temporary app, see SKILL.md)."
+  echo "==> No DEPLOY_TOKEN set — deploying anonymously: a live but TEMPORARY app,"
+  echo "    deleted after 24h unless claimed by redeploying with a real token."
 fi
 
 # Landing-page attribution, if this deploy came from one. Same array
@@ -155,7 +157,8 @@ if ! echo "$RESPONSE" | grep -q '"success":true'; then
   # scripts/troubleshoot.md's error code reference for what each means.
   CODE=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).code' 2>/dev/null || true)
   if [[ -n "$CODE" && "$CODE" != "undefined" ]]; then
-    echo "==> Deploy failed (code: ${CODE}) — see scripts/troubleshoot.md before retrying."
+    echo "==> Deploy failed (code: ${CODE}) — look this code up before retrying:"
+    echo "    scripts/troubleshoot.md, or https://embarko.ai/troubleshoot"
   else
     echo "==> Deploy failed — inspect the response above before retrying."
   fi
