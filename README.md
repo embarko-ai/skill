@@ -29,11 +29,14 @@ For a repo-local install instead of global, drop the `-g` flag.
 
 ## Usage
 
-Ask Claude to deploy — e.g. "deploy this to Embarko." Claude will package the app, call the deploy API, and verify the deployment before reporting it as complete.
+Ask Claude to deploy — e.g. "deploy this to Embarko." Claude runs
+`scripts/deploy.sh`, which packages the app, uploads it, waits for the
+build, and prints the live URL.
 
-Alternatively, run the packaging/deploy script directly:
+The same script is the whole thing if you'd rather run it yourself:
 ```bash
-./scripts/deploy.sh
+./scripts/deploy.sh                 # the current directory
+./scripts/deploy.sh path/to/app     # a specific directory
 ```
 
 ### A note on where this works

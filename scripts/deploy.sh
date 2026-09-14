@@ -15,12 +15,19 @@
 #
 # Always pass a unique version — never reuse a floating tag such as "latest".
 #
-# Optional environment variable:
+# Optional environment variables:
 #   DEPLOY_TOKEN   — your company deploy token. If unset, this deploys
 #                    ANONYMOUSLY: a live but temporary app (auto-deleted
 #                    after 24h unless later claimed with a real token —
 #                    see SKILL.md for how to get one, including by email
 #                    with no dashboard visit at all).
+#   EMBARKO_LP_VARIANT
+#                  — landing-page attribution only: which marketing page
+#                    produced this deploy. Sent as the `lp_variant` header,
+#                    which the deploy prompt on embarko.ai used to carry
+#                    inline back when that prompt was raw curl. Purely
+#                    informational — never required, and absent for every
+#                    deploy that didn't start from a landing page.
 
 set -euo pipefail
 
@@ -122,9 +129,18 @@ else
   echo "==> No DEPLOY_TOKEN set — deploying anonymously (temporary app, see SKILL.md)."
 fi
 
+# Landing-page attribution, if this deploy came from one. Same array
+# treatment as the auth header above, for the same reason: an unset
+# variable must omit the header entirely rather than send an empty one.
+CURL_ATTRIBUTION_ARGS=()
+if [[ -n "${EMBARKO_LP_VARIANT:-}" ]]; then
+  CURL_ATTRIBUTION_ARGS=(-H "lp_variant: ${EMBARKO_LP_VARIANT}")
+fi
+
 echo "==> Deploying to ${DEPLOY_URL}"
 RESPONSE=$(curl -sS -X POST "$DEPLOY_URL" \
   "${CURL_AUTH_ARGS[@]}" \
+  "${CURL_ATTRIBUTION_ARGS[@]}" \
   -H "X-App-Name: ${APP_NAME}" \
   -H "X-App-Version: ${VERSION}" \
   -F "source=@${TARBALL}")
@@ -158,6 +174,7 @@ fi
 # in_progress rather than reporting success off the 202 alone.
 STATUS_URL=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).statusUrl' 2>/dev/null || true)
 LOGS_URL=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).logsUrl' 2>/dev/null || true)
+APP_URL=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).url' 2>/dev/null || true)
 
 if [[ -z "$STATUS_URL" || "$STATUS_URL" == "undefined" ]]; then
   echo ""
@@ -172,6 +189,13 @@ for _ in $(seq 1 60); do
   DEPLOY_STATUS=$(echo "$STATUS_RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).deploy.status' 2>/dev/null || echo "unknown")
   if [[ "$DEPLOY_STATUS" == "success" ]]; then
     echo "==> Deploy succeeded."
+    # Printed on its own line, last: this is the one piece of output the
+    # caller (or the agent running this) actually reports back to a person,
+    # and digging it out of the raw JSON above shouldn't be their job.
+    if [[ -n "$APP_URL" && "$APP_URL" != "undefined" ]]; then
+      echo "==> Live:"
+      echo "$APP_URL"
+    fi
     exit 0
   elif [[ "$DEPLOY_STATUS" == "failed" ]]; then
     echo "==> Deploy failed. Logs (${LOGS_URL}):"
