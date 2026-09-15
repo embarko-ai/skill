@@ -91,6 +91,52 @@ Never commit the credential file, never print the token back to the
 person, and never invent a token value — a wrong token is a hard `401`,
 whereas no token at all is a working anonymous deploy.
 
+## Operating the app after it's deployed
+
+With a deploy token you can also fix a deployed app yourself, without
+sending the person to the dashboard. Same token, addressed by app name:
+
+```bash
+BASE="https://ship.embarko.ai/api/apps/<app-name>"
+AUTH="Authorization: Bearer ${DEPLOY_TOKEN}"
+
+# Which variables are set (keys only — values are never returned)
+curl -H "$AUTH" "$BASE/env-vars"
+
+# Update one variable, and make it take effect straight away
+curl -X PUT -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"value":"sk_live_...","apply":true}' "$BASE/env-vars/STRIPE_SECRET_KEY"
+
+# Or set several at once (a merge: variables you don't list are left alone)
+curl -X PUT -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"vars":[{"key":"A","value":"1"},{"key":"B","value":"2"}],"apply":true}' "$BASE/env-vars"
+
+# Deployment history, newest first — `rollbackTarget: true` marks a valid target
+curl -H "$AUTH" "$BASE/deployments"
+
+# Undo the last deploy (or pass {"deploymentId":"..."} for a specific one)
+curl -X POST -H "$AUTH" -H "Content-Type: application/json" -d '{}' "$BASE/rollback"
+```
+
+Three things to get right:
+
+1. **A write alone does not reach the running app.** Saving a variable
+   leaves the running container untouched (`"applied": false`). Pass
+   `"apply": true` to make it take effect immediately — that re-pushes the
+   running image with the new value, no rebuild and no source upload, so
+   it works even for an app that can't boot without the variable. After a
+   `DELETE`, or several separate writes, `POST $BASE/env-vars/apply` does
+   the same thing once. Reporting "I've set it" without applying or
+   redeploying leaves the app exactly as broken as you found it.
+2. **Rollback returns `202`, not "done".** Poll the `statusUrl` it gives
+   you until `terminal` is `true`, same as a deploy.
+3. **You cannot read a variable's value back**, only its key. If you need
+   to know a secret's value, ask the person — don't try to recover it from
+   logs.
+
+Prefer fixing the code and redeploying. Roll back when the app is down and
+the cause isn't obvious yet — it restores service while you investigate.
+
 ## Database support (optional)
 
 Apps that need a relational database can use an embedded, in-process database rather than requiring a separately hosted one. If your app needs this:
