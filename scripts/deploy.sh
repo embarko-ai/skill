@@ -123,6 +123,18 @@ tar -czf "$TARBALL" \
 # Authorization header entirely (anonymous deploy), not send an empty
 # Bearer value, which the API would reject as an invalid token (401)
 # rather than treating it as anonymous.
+# A token in the environment wins; otherwise fall back to the credential
+# file an earlier run saved. Without this fallback the skill's "store it
+# and stop asking" instruction would be a lie — the value would sit on
+# disk and every later deploy would still go out anonymously.
+EMBARKO_CREDENTIALS="${EMBARKO_CREDENTIALS_FILE:-$HOME/.embarko/credentials}"
+if [[ -z "${DEPLOY_TOKEN:-}" && -r "$EMBARKO_CREDENTIALS" ]]; then
+  # First non-empty, non-comment line, whitespace stripped — a credential
+  # file people also hand-edit shouldn't break on a trailing newline.
+  DEPLOY_TOKEN=$(grep -v '^[[:space:]]*#' "$EMBARKO_CREDENTIALS" | tr -d '[:space:]' | head -1)
+  [[ -n "$DEPLOY_TOKEN" ]] && echo "==> Using the saved credential in ${EMBARKO_CREDENTIALS}."
+fi
+
 CURL_AUTH_ARGS=()
 if [[ -n "${DEPLOY_TOKEN:-}" ]]; then
   CURL_AUTH_ARGS=(-H "Authorization: Bearer ${DEPLOY_TOKEN}")

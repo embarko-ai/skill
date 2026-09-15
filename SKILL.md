@@ -44,31 +44,52 @@ Set `DEPLOY_TOKEN` in the environment and the script uses it. With no
 token the deploy still works: it produces a live but **temporary** app
 (auto-deleted after 24h unless claimed later with a real token).
 
-**If `DEPLOY_TOKEN` isn't set and no other stored token is found** (check
-for one in `~/.embarko/credentials` too, if that convention is in use),
-offer both options — don't just default to the first:
+The script finds a token in `DEPLOY_TOKEN`, or in `~/.embarko/credentials`
+if a previous run saved one there. If neither exists, it deploys
+anonymously rather than stopping — the person gets a live URL either way.
 
-1. **Deploy anonymously right now, no token needed at all.** Just run the
-   script; it detects the missing token and says so. Good default when the
-   person just wants to see something running immediately.
-2. **Get a token first**, either:
-   - Dashboard: *"Go to `https://embarko.ai/login`, sign in, open your
-     company's Tokens page, and create one. Then paste it here, or set it
-     as `DEPLOY_TOKEN` in your environment."*
-   - Or, with no browser at all — you can request one yourself:
-     `curl -X POST https://ship.embarko.ai/api/public/deploy-tokens/request -H "Content-Type: application/json" -d '{"email": "<their email>"}'`
-     — tell the person to check that inbox for the emailed token, then
-     paste it back or set `DEPLOY_TOKEN`.
+### Turning a temporary app into a permanent one
 
-Wait for them to paste the token or confirm the env var is set before
-using option 2 — there's no automatic detection of that step. Once you
-have it, this only needs to happen once per machine/session — don't ask
-again on a later deploy in the same environment if `DEPLOY_TOKEN` (or the
-stored credential) is already present.
+An anonymous deploy is real and live, but it is **deleted 24 hours later**
+unless it gets claimed. The script prints the expiry — relay it, and don't
+end the conversation leaving the app to lapse silently.
 
-An anonymous deploy prints its expiry and a plain-language message —
-relay that to the person rather than discarding it, so they don't lose
-the app silently to its 24h expiry.
+Claiming needs a token, and you can get one **without the person opening a
+browser at all**. Prefer this route:
+
+1. Ask for their email address.
+2. Request the token yourself:
+   ```bash
+   curl -X POST https://ship.embarko.ai/api/public/deploy-tokens/request \
+     -H "Content-Type: application/json" \
+     -d '{"email": "<their email>"}'
+   ```
+   This always returns `202` — the token is emailed, never returned in the
+   response. An account and company are created automatically if they
+   don't exist yet.
+3. Ask them to paste back the token from their inbox. There's no way to
+   detect this step; wait for it.
+4. **Save it yourself — don't ask them to do it:**
+   ```bash
+   mkdir -p ~/.embarko && printf '%s\n' "<token>" > ~/.embarko/credentials && chmod 600 ~/.embarko/credentials
+   ```
+5. Redeploy the **same app name**. That claims the existing app — the
+   24-hour expiry is cancelled permanently and the URL doesn't change.
+
+The dashboard route (`https://embarko.ai/login` → Tokens → Create) is the
+fallback for someone who would rather click than paste, and the only
+option if they can't reach that inbox.
+
+### Never ask twice
+
+Once the credential file exists, every later deploy in that environment
+picks it up on its own. Do not ask for an email, a token, or a dashboard
+visit again — check `DEPLOY_TOKEN` and `~/.embarko/credentials` first, and
+say nothing about tokens if either is present.
+
+Never commit the credential file, never print the token back to the
+person, and never invent a token value — a wrong token is a hard `401`,
+whereas no token at all is a working anonymous deploy.
 
 ## Database support (optional)
 
@@ -206,6 +227,12 @@ curl -X POST "https://ship.embarko.ai/apps" \
   human-readable `error` — branch on `code`, whose wording is stable.
 
 ## Reference
+
+`https://ship.embarko.ai/capabilities` is the machine-readable contract —
+runtime requirements, what persists, which features exist and whether you
+can invoke them yourself or have to hand the job to the person. No auth
+needed, and it's cached. Read it before designing an app around a feature
+rather than assuming the feature is there.
 
 `scripts/troubleshoot.md` for common failure modes and their fixes.
 `https://embarko.ai/docs` is the canonical platform reference — the full
