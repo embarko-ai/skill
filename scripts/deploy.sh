@@ -108,6 +108,35 @@ if grep -rlF --include='*.js' --include='*.jsx' --include='*.ts' --include='*.ts
 fi
 rm -f /tmp/embarko-storage-check
 
+# Fail fast on a static site with no entry point. Build detection needs an
+# index.html at the archive root; a folder holding only landing.html (or a
+# single generated page under some other name) builds into nothing servable
+# and fails several minutes later, at the build step, with a message that
+# doesn't name the real cause. Only applies when there is no other buildable
+# manifest — a Node/Python/Go app is detected by its manifest, not by HTML.
+EMBARKO_HAS_MANIFEST=0
+for _m in package.json requirements.txt pyproject.toml go.mod Gemfile composer.json Cargo.toml; do
+  if [[ -e "$APP_DIR/$_m" ]]; then EMBARKO_HAS_MANIFEST=1; break; fi
+done
+# nullglob so a directory with no .html at all yields an empty array rather
+# than the literal pattern; restored immediately, the rest of the script does
+# not expect it.
+shopt -q nullglob && _EMBARKO_NULLGLOB_WAS_SET=1 || _EMBARKO_NULLGLOB_WAS_SET=0
+shopt -s nullglob
+EMBARKO_ROOT_HTML=("$APP_DIR"/*.html)
+(( _EMBARKO_NULLGLOB_WAS_SET )) || shopt -u nullglob
+
+if [[ ! -e "$APP_DIR/index.html" ]] \
+   && (( EMBARKO_HAS_MANIFEST == 0 )) \
+   && (( ${#EMBARKO_ROOT_HTML[@]} > 0 )); then
+  echo "ERROR: this looks like a static site with no index.html at its root." >&2
+  echo "Found instead:" >&2
+  printf '  %s\n' "${EMBARKO_ROOT_HTML[@]}" >&2
+  echo "Embarko's build detection serves index.html — rename or copy the page" >&2
+  echo "to ${APP_DIR}/index.html and run this again." >&2
+  exit 1
+fi
+
 echo "==> App: ${APP_NAME}  Version: ${VERSION}"
 echo "==> Packaging ${APP_DIR} -> ${TARBALL}"
 tar -czf "$TARBALL" \

@@ -32,11 +32,21 @@ automatically) and the new version replaces the old one.
 If the script isn't present in your environment, see
 [Deploying without the script](#deploying-without-the-script) at the end.
 
-## Before the first deploy: three app requirements
+## Before the first deploy: app requirements
 
 1. It must read its listening port from the `PORT` environment variable — Embarko assigns this dynamically.
 2. It must bind to `0.0.0.0`, not `127.0.0.1`/`localhost`.
 3. No Dockerfile should be present — Embarko's build system detects the language/framework automatically and builds the image itself.
+4. **A static site must have an `index.html` at the root of the archive.**
+   Build detection looks for an entry point; a folder holding only
+   `landing.html` or `flowly.html` looks like nothing it can serve and the
+   build fails. Rename or copy the page to `index.html` *before* packaging
+   rather than discovering this from a failed build.
+
+The app name is also the live subdomain: lowercase letters, numbers and
+dashes only. If the person names it in prose ("Testing landing page"),
+slugify it yourself (`testing-landing-page`) and tell them what you used —
+don't send the prose form and take a `400`.
 
 ## Token — optional
 
