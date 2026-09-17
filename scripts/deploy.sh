@@ -101,7 +101,7 @@ if grep -rlF --include='*.js' --include='*.jsx' --include='*.ts' --include='*.ts
     -- 'window.storage' "$APP_DIR" >/tmp/embarko-storage-check 2>/dev/null; then
   echo "ERROR: found window.storage usage (not supported on Embarko) in:" >&2
   cat /tmp/embarko-storage-check >&2
-  echo "Use SQLite (better-sqlite3) or PGlite instead, writing under DATA_DIR." >&2
+  echo "Use SQLite (better-sqlite3) instead, writing under DATA_DIR." >&2
   echo "Details: https://embarko.ai/docs" >&2
   rm -f /tmp/embarko-storage-check
   exit 1

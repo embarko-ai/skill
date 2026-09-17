@@ -149,21 +149,23 @@ the cause isn't obvious yet — it restores service while you investigate.
 
 ## Database support (optional)
 
-Apps that need a relational database can use an embedded, in-process database rather than requiring a separately hosted one. If your app needs this:
+Apps that need a database can use SQLite, an embedded in-process engine, rather than requiring a separately hosted one. If your app needs this:
 
-1. Add `@electric-sql/pglite` as a dependency.
+1. Add `better-sqlite3` as a dependency.
 2. Point it at the `DATA_DIR` environment variable, which Embarko provides automatically and persists across redeploys:
    ```js
-   const { PGlite } = require('@electric-sql/pglite');
-   const db = new PGlite(`${process.env.DATA_DIR}/pglite`);
+   const Database = require('better-sqlite3');
+   const db = new Database(`${process.env.DATA_DIR}/app.db`);
    ```
 No separate database provisioning, connection strings, or credentials are required. Note that this is a single-instance embedded database, not a shared/scalable one — it's intended for apps that run as a single instance.
 
-Embarko automatically detects the `@electric-sql/pglite` dependency at deploy time and allocates more memory to the app than a non-database app gets by default — no configuration needed on your end. If your app still runs out of memory (visible as repeated crash-restarts), it likely has other memory-heavy dependencies beyond the database and may need a higher allocation — mention this if it comes up during a deploy.
+SQLite is the only supported embedded database. PGlite (`@electric-sql/pglite`) was previously supported and is not any more — do not use it, and if you are adapting an existing app that uses it, port it to `better-sqlite3` before deploying.
+
+Keep the whole database under `DATA_DIR`, including the `-wal` and `-shm` files SQLite creates alongside it — those are part of the database, and a database split across `DATA_DIR` and somewhere else will lose data.
 
 ## Storage requirements
 
-Do not use `window.storage` — it's an API specific to Claude.ai's Artifacts sandbox and does not exist outside it. The script refuses to upload an app that calls it, and the platform rejects it too (HTTP 422, before any build is attempted) with the offending file(s) named. If an app was generated or previewed inside an Artifacts-style tool and uses this API, replace it with SQLite (`better-sqlite3`) for simple key-value data, or PGlite (above) for relational data — either way, write to a path under `DATA_DIR` so it persists across redeploys.
+Do not use `window.storage` — it's an API specific to Claude.ai's Artifacts sandbox and does not exist outside it. The script refuses to upload an app that calls it, and the platform rejects it too (HTTP 422, before any build is attempted) with the offending file(s) named. If an app was generated or previewed inside an Artifacts-style tool and uses this API, replace it with SQLite (`better-sqlite3`, see above), writing to a path under `DATA_DIR` so it persists across redeploys.
 
 Anything written outside `DATA_DIR` is lost on the next redeploy — a fresh
 container is scheduled every time.
