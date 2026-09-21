@@ -108,6 +108,54 @@ if grep -rlF --include='*.js' --include='*.jsx' --include='*.ts' --include='*.ts
 fi
 rm -f /tmp/embarko-storage-check
 
+# Fail fast on a "wrapper root": a package.json that declares no
+# dependencies of its own and delegates the build to a subdirectory (the
+# usual frontend/backend repo layout). Embarko installs dependencies at
+# the root of what you upload and nowhere else, so the subdirectory's
+# node_modules is never created and the delegated build dies on a missing
+# command (exit 127) minutes into the build. The deploy API rejects this
+# too (code "app_nested_in_subdirectory") — this check just saves the
+# packaging + upload round trip. Mirrors detectDelegatingRoot in the
+# server's detect-manifest-root.js; keep the two in step.
+if [[ -f "$APP_DIR/package.json" ]]; then
+  EMBARKO_DELEGATES_TO=$(node -e '
+    const fs = require("fs"), path = require("path");
+    const dir = process.argv[1];
+    let pkg;
+    try { pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")); } catch { process.exit(0); }
+    if (Object.keys(pkg.dependencies || {}).length + Object.keys(pkg.devDependencies || {}).length > 0) process.exit(0);
+    const patterns = [/--prefix[= ]+(\S+)/, /--cwd[= ]+(\S+)/, /--dir[= ]+(\S+)/, /(?:^|&&|;|\|)\s*cd\s+([^\s&;|]+)/];
+    const candidates = [];
+    for (const name of ["build", "start"]) {
+      const text = (pkg.scripts || {})[name];
+      if (typeof text !== "string") continue;
+      for (const p of patterns) { const m = p.exec(text); if (m) candidates.push(m[1]); }
+    }
+    const ws = Array.isArray(pkg.workspaces) ? pkg.workspaces
+      : (pkg.workspaces && Array.isArray(pkg.workspaces.packages) ? pkg.workspaces.packages : []);
+    for (const w of ws) if (typeof w === "string") candidates.push(w);
+    for (let c of candidates) {
+      c = c.replace(/^\.\//, "").replace(/\/+$/, "");
+      if (!c || c === "." || c.includes("..") || path.isAbsolute(c)) continue;
+      if (fs.existsSync(path.join(dir, c, "package.json"))) { console.log(c); break; }
+    }
+  ' "$APP_DIR" 2>/dev/null || true)
+
+  if [[ -n "$EMBARKO_DELEGATES_TO" ]]; then
+    echo "ERROR: ${APP_DIR}/package.json has no dependencies of its own and hands its build" >&2
+    echo "    to '${EMBARKO_DELEGATES_TO}/'. Embarko installs dependencies only at the root of" >&2
+    echo "    what you upload, so ${EMBARKO_DELEGATES_TO}/node_modules would never be created and" >&2
+    echo "    the build would fail on a missing command (exit code 127)." >&2
+    echo "" >&2
+    echo "    Fix — deploy the app itself, not the folder above it:" >&2
+    echo "      ./scripts/deploy.sh ${APP_DIR%/}/${EMBARKO_DELEGATES_TO}" >&2
+    echo "" >&2
+    echo "    Note: one deploy = one app. If this repo also has a separate backend," >&2
+    echo "    deploy it separately under its own app name." >&2
+    exit 1
+  fi
+fi
+
 # Fail fast on a static site with no entry point. Build detection needs an
 # index.html at the archive root; a folder holding only landing.html (or a
 # single generated page under some other name) builds into nothing servable

@@ -42,11 +42,18 @@ If the script isn't present in your environment, see
    `landing.html` or `flowly.html` looks like nothing it can serve and the
    build fails. Rename or copy the page to `index.html` *before* packaging
    rather than discovering this from a failed build.
-5. **The app's manifest must be at the root of the directory you deploy —
-   not nested inside a subfolder.** If you extracted a zip and it created
-   an extra wrapping folder (`myapp/myapp/...`), point `deploy.sh` at the
-   inner folder, or move its contents up one level, before deploying. The
-   script checks for this and fails fast with the exact fix if it's wrong.
+5. **Deploy the folder that holds the actual app, not the folder above
+   it.** The build only ever installs dependencies at the root of what you
+   upload. Two shapes break this, and both are rejected up front with the
+   folder to use instead:
+   - an extra wrapping folder from an extracted zip (`myapp/myapp/...`);
+   - a **repo root whose `package.json` has no dependencies of its own and
+     delegates** — `"build": "npm --prefix frontend run build"`, a
+     `cd frontend && …` script, or a `workspaces` entry. This is the usual
+     frontend/backend repo layout. Deploy `frontend` itself.
+
+   **One upload = one app.** A repo containing both a frontend and a
+   backend is two deploys under two app names, not one.
 
 The app name is also the live subdomain: lowercase letters, numbers and
 dashes only. If the person names it in prose ("Testing landing page"),
