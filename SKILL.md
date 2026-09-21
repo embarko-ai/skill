@@ -159,6 +159,49 @@ Three things to get right:
 Prefer fixing the code and redeploying. Roll back when the app is down and
 the cause isn't obvious yet — it restores service while you investigate.
 
+### Custom domains, analytics, renaming, deleting
+
+Same token and `$BASE` as above:
+
+```bash
+# Point a domain at the app — returns the exact DNS record to create
+curl -X POST -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"domain":"app.example.com"}' "$BASE/domains"
+
+# Once that record exists and has propagated, activate it
+curl -X POST -H "$AUTH" "$BASE/domains/app.example.com/verify"
+
+# List / remove
+curl -H "$AUTH" "$BASE/domains"
+curl -X DELETE -H "$AUTH" "$BASE/domains/app.example.com"
+
+# Traffic + resource usage (range: 24h, 7d, 30d, 90d, all)
+curl -H "$AUTH" "$BASE/analytics?range=7d"
+
+# Display name only — the app's slug/URL never changes
+curl -X PATCH -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"name":"My App"}' "$BASE"
+```
+
+The DNS record itself has to be created by whoever controls that domain's
+DNS — hand them the record `POST /domains` returns rather than trying to
+create it yourself.
+
+**Deleting is irreversible, with no backup.** Only do it when the person
+explicitly asked to delete the app — not as a cleanup step you decided on
+your own — and confirm with them what's about to be deleted before
+sending this:
+
+```bash
+curl -X DELETE -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"confirmAppName":"<app-name>"}' "$BASE"
+```
+
+`confirmAppName` must exactly match the app's name — a missing or wrong
+value returns `400 confirmation_required` and deletes nothing. That check
+guards against acting on a misread instruction; it is not a substitute for
+actually confirming with the person first.
+
 ## Showcasing the app
 
 A deployed app can be listed on a public Embarko showcase page (someone's
