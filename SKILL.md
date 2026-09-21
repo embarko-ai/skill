@@ -42,6 +42,11 @@ If the script isn't present in your environment, see
    `landing.html` or `flowly.html` looks like nothing it can serve and the
    build fails. Rename or copy the page to `index.html` *before* packaging
    rather than discovering this from a failed build.
+5. **The app's manifest must be at the root of the directory you deploy —
+   not nested inside a subfolder.** If you extracted a zip and it created
+   an extra wrapping folder (`myapp/myapp/...`), point `deploy.sh` at the
+   inner folder, or move its contents up one level, before deploying. The
+   script checks for this and fails fast with the exact fix if it's wrong.
 
 The app name is also the live subdomain: lowercase letters, numbers and
 dashes only. If the person names it in prose ("Testing landing page"),

@@ -114,10 +114,44 @@ rm -f /tmp/embarko-storage-check
 # and fails several minutes later, at the build step, with a message that
 # doesn't name the real cause. Only applies when there is no other buildable
 # manifest — a Node/Python/Go app is detected by its manifest, not by HTML.
+EMBARKO_MANIFESTS=(package.json requirements.txt pyproject.toml go.mod Gemfile composer.json Cargo.toml)
 EMBARKO_HAS_MANIFEST=0
-for _m in package.json requirements.txt pyproject.toml go.mod Gemfile composer.json Cargo.toml; do
+for _m in "${EMBARKO_MANIFESTS[@]}"; do
   if [[ -e "$APP_DIR/$_m" ]]; then EMBARKO_HAS_MANIFEST=1; break; fi
 done
+
+# Fail fast if the app's manifest (or index.html) is nested one level down
+# instead of at $APP_DIR's root — e.g. an archive that unpacked with an
+# extra wrapping folder ("myapp/myapp/..."). Embarko's build only looks at
+# $APP_DIR's own root; a nested manifest packages into nothing buildable
+# there and fails several minutes later, deep inside the build step, with
+# a cryptic error (e.g. "npm run build ... exit code: 127") that doesn't
+# name the real cause. Only checked when the root has neither a manifest
+# nor an index.html — if the root already has something buildable, there's
+# nothing to detect here.
+if (( EMBARKO_HAS_MANIFEST == 0 )) && [[ ! -e "$APP_DIR/index.html" ]]; then
+  EMBARKO_NESTED_HIT=""
+  for _d in "$APP_DIR"/*/; do
+    [[ -d "$_d" ]] || continue
+    case "$(basename "$_d")" in node_modules|.git|.next|dist|venv|__pycache__) continue ;; esac
+    for _m in "${EMBARKO_MANIFESTS[@]}" index.html; do
+      if [[ -e "${_d}${_m}" ]]; then EMBARKO_NESTED_HIT="${_d}${_m}"; break 2; fi
+    done
+  done
+  if [[ -n "$EMBARKO_NESTED_HIT" ]]; then
+    EMBARKO_NESTED_DIR=$(dirname "$EMBARKO_NESTED_HIT")
+    echo "ERROR: no app manifest (package.json, requirements.txt, ...) or index.html found" >&2
+    echo "    at the root of ${APP_DIR}, but found one in: ${EMBARKO_NESTED_HIT}" >&2
+    echo "" >&2
+    echo "    Your app files look nested one level too deep — likely an extra wrapping" >&2
+    echo "    folder from how this was extracted or downloaded." >&2
+    echo "" >&2
+    echo "    Fix — point this script at the actual app folder instead:" >&2
+    echo "      ./scripts/deploy.sh ${EMBARKO_NESTED_DIR}" >&2
+    echo "    (or move everything from inside ${EMBARKO_NESTED_DIR}/ up into ${APP_DIR}/ and rerun)" >&2
+    exit 1
+  fi
+fi
 # nullglob so a directory with no .html at all yields an empty array rather
 # than the literal pattern; restored immediately, the rest of the script does
 # not expect it.
