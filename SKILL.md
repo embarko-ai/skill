@@ -1,6 +1,6 @@
 ---
 name: embarko-deploy
-description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app.
+description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app, or to showcase / feature / list a deployed app on an Embarko showcase collection.
 ---
 
 # Embarko Deploy
@@ -158,6 +158,46 @@ Three things to get right:
 
 Prefer fixing the code and redeploying. Roll back when the app is down and
 the cause isn't obvious yet — it restores service while you investigate.
+
+## Showcasing the app
+
+A deployed app can be listed on a public Embarko showcase page (someone's
+**collection**). Do this only when the person asks. It needs a deploy
+token — an unclaimed temporary app must be claimed first.
+
+**Ask the person for all of the details below before sending — required
+ones marked — don't guess or send placeholders; this call publishes.**
+You may draft `tagline`/`whatItDoes` from your knowledge of the app for
+them to approve. `name`, `tagline`, `whatItDoes`, `category` and `tags`
+are also used for the app's SEO (page title, meta description, keywords),
+so write them as real, searchable copy — what the app does and who it's
+for, in plain words — not marketing fluff or placeholder text. Omit
+optional keys they don't give you. Re-running the `PUT` for the same app
+updates the listing.
+
+```bash
+curl -X PUT "https://ship.embarko.ai/api/apps/<app-name>/showcase" \
+  -H "Authorization: Bearer ${DEPLOY_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "collectionSlug": "<showcase-page-slug>",          // required — slug of the collection they're submitting to
+    "name": "<app-name>",                              // required — name shown on the showcase
+    "tagline": "<1-3-liner-description-of-app>",       // required
+    "creatorName": "<their-name>",                     // required
+    "whatItDoes": "<longer-description>",
+    "whyBuilt": "<why-they-built-it>",
+    "creatorProfile": "<https-profile-url>",
+    "builtWith": "<Claude|Codex|Cursor|Lovable|Replit|Other>",           // exactly one of these
+    "category": "<AI Tool|Personal|Business|Productivity|Education|Game|Developer Tool|Other>",  // exactly one of these
+    "tags": ["<tag>", "<tag>"],
+    "videoUrl": "<https-video-url>",
+    "screenshotUrl": "<https-image-url>"
+  }'
+```
+
+A `2xx` means it's listed — relay any URL in the response. A `4xx` carries
+a `code`/`error`; fix the input (wrong slug, missing required field,
+value not in the list above) rather than retrying the same request.
 
 ## Database support (optional)
 

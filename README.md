@@ -39,6 +39,11 @@ The same script is the whole thing if you'd rather run it yourself:
 ./scripts/deploy.sh path/to/app     # a specific directory
 ```
 
+Once it's deployed (with a token), you can also ask Claude to **showcase**
+the app on an Embarko showcase collection — e.g. "showcase this app on the
+`<collection-slug>` page." Claude will ask you for the listing details
+(name, tagline, your name, and any optional extras) before submitting.
+
 ### A note on where this works
 
 This skill calls an external API, so it needs your agent to have real outbound network access. It works out of the box with:
