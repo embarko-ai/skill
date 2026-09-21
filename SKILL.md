@@ -202,6 +202,31 @@ value returns `400 confirmation_required` and deletes nothing. That check
 guards against acting on a misread instruction; it is not a substitute for
 actually confirming with the person first.
 
+**Changing the app's web address** is a different call from the rename
+above — that one changes the label, this moves the URL:
+
+```bash
+curl -X POST -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"newName":"my-better-app"}' "$BASE/slug-change"
+```
+
+**Ask the person first, every time.** The old address stops working the
+moment the new one is live — no redirect, existing links break, and the
+freed name can be claimed by someone else. Do it when they have asked for
+a different address, not because a name looks untidy to you.
+
+It returns `202` and takes minutes, because the app needs a fresh
+certificate for the new hostname. Poll the `statusUrl` until `terminal`
+is `true`; `currentSlug` always says where the app actually is, and a
+failure leaves it on the old address untouched. Afterwards deploy with
+the new name — the response's `deployWith` gives the exact `X-App-Name`.
+If a later call returns `404 app_renamed`, follow its `retryUrl` rather
+than redeploying, which would create a second empty app. One change per
+app per week (`429 slug_change_cooldown`).
+
+A custom domain is carried over and keeps working, and a Showcase listing
+keeps its own URL — worth saying, since both look like they would break.
+
 ## Showcasing the app
 
 A deployed app can be listed on a public Embarko showcase page (someone's
@@ -241,6 +266,8 @@ curl -X PUT "https://ship.embarko.ai/api/apps/<app-name>/showcase" \
 A `2xx` means it's listed — relay any URL in the response. A `4xx` carries
 a `code`/`error`; fix the input (wrong slug, missing required field,
 value not in the list above) rather than retrying the same request.
+
+
 
 ## Database support (optional)
 
@@ -389,6 +416,7 @@ rather than assuming the feature is there.
 
 `scripts/troubleshoot.md` for common failure modes and their fixes.
 `https://embarko.ai/docs` is the canonical platform reference — the full
-API, rollback, env vars, custom domains, and the platform's actual
-constraints. Prefer it over this file for anything not covered here, and
-trust the live API's behaviour over either if they ever disagree.
+API, rollback, env vars, changing an app's address, custom domains, and
+the platform's actual constraints. Prefer it over this file for anything
+not covered here, and trust the live API's behaviour over either if they
+ever disagree.
