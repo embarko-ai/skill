@@ -55,7 +55,8 @@ If the script isn't present in your environment, see
    **One upload = one app.** A repo containing both a frontend and a
    backend is two deploys under two app names, not one.
 
-The app name is also the live subdomain: lowercase letters, numbers and
+The app name is also the live subdomain — deployed apps are served at
+`https://<app-name>.embarko.app`. Lowercase letters, numbers and
 dashes only. If the person names it in prose ("Testing landing page"),
 slugify it yourself (`testing-landing-page`) and tell them what you used —
 don't send the prose form and take a `400`.
@@ -295,7 +296,7 @@ it fails fast with this exact diagnosis rather than mid-upload. Don't
 report it as a generic deploy failure — give the precise, actionable fix:
 
 1. Check for that setting and add `embarko.ai`, `ship.embarko.ai`, and
-   `*.app.embarko.ai` yourself if you're able to. **In Claude
+   `*.embarko.app` yourself if you're able to. **In Claude
    specifically**: this is an org-admin setting at *Organization
    settings → Capabilities → domain allowlist* (None / Package managers
    only / All domains, or a custom list) — Team/Enterprise orgs default

@@ -51,7 +51,7 @@ if ! curl -sS --connect-timeout 5 -o /dev/null "$DEPLOY_URL" 2>/tmp/embarko-prob
   echo "" >&2
   echo "    Fix — pick one:" >&2
   echo "    1. If you can change your agent platform's network settings, allow these" >&2
-  echo "       three domains: embarko.ai, ship.embarko.ai, *.app.embarko.ai" >&2
+  echo "       three domains: embarko.ai, ship.embarko.ai, *.embarko.app" >&2
   echo "       (In Claude specifically: Organization settings -> Capabilities ->" >&2
   echo "       domain allowlist -> add them, or switch to \"All domains\". This is an" >&2
   echo "       org-admin setting, and it only applies to NEW conversations/sessions —" >&2
