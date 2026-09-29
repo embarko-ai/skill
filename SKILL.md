@@ -32,8 +32,9 @@ before it is deleted. After a claimed deploy, it is the showcase. On a
 failure, it is how to fix it. Follow it rather than guessing.
 
 **Static sites are simpler.** A plain site (an `index.html` and assets,
-nothing to build) is published directly and is live within seconds. It has
-no logs and takes no env vars, because nothing runs on the server.
+nothing to build) is published while the request waits, so the deploy reply
+is usually already `live`, and the script finishes straight away. It has no
+logs and takes no env vars, because nothing runs on the server.
 
 ### App type — optional, but pass it when you can
 
@@ -488,11 +489,15 @@ curl -X POST "https://ship.embarko.ai/apps" \
 
 ## Reference
 
-`https://ship.embarko.ai/capabilities` is the machine-readable contract —
-runtime requirements, what persists, which features exist and whether you
-can invoke them yourself or have to hand the job to the person. No auth
-needed, and it's cached. Read it before designing an app around a feature
-rather than assuming the feature is there.
+`https://ship.embarko.ai/capabilities` is the machine-readable contract,
+laid out like a book: the URL itself is a short contents page, one line per
+topic, and `https://ship.embarko.ai/capabilities/<topic>` answers one
+question in full (whether it exists, who can do it, the steps, the limits,
+and whether a person has to do part of it). When the person asks "can you
+add my domain?", read `/capabilities/custom-domain`, not the whole thing.
+No auth needed, and it's cached. Read the topic before designing an app
+around a feature rather than assuming the feature is there. Deploy replies
+also link the right topic as `links.help` when there's more to know.
 
 `scripts/troubleshoot.md` for common failure modes and their fixes.
 `https://embarko.ai/docs` is the canonical platform reference — the full

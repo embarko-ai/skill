@@ -19,6 +19,8 @@ Every non-2xx response from `POST /apps` includes a machine-readable `code` fiel
 | `invalid_app_type` | 400 | `X-App-Type` (`EMBARKO_APP_TYPE`) is over 60 characters or has non-printable/non-ASCII characters | Shorten it to a plain label like `portfolio`, or unset it — it's optional |
 | `not_supported_for_static` | 409 | An env var write/apply (or memory change) on a **static site**. Nothing runs on the server, so there is nothing to configure | Put configuration in the site's files, or deploy it as a server app under a new app name |
 | `app_kind_changed` | 422 | The app is a static site and this upload is a server app — a static site can't become one | Deploy this version under a new app name |
+| `publish_failed` | 500 | A static site's files couldn't be published (on Embarko's side) | Redeploy once; if it fails again, report it to `links.feedback` |
+| `invalid_feedback_type` | 400 | Feedback sent with an unknown `type` | Use `platform_bug`, `missing_capability`, `docs_issue`, `unexpected_behavior` or `other` |
 | `invalid_agent_name` | 400 | `X-Agent-Name` (`EMBARKO_AGENT_NAME`) is over 60 characters or has non-printable/non-ASCII characters | Use a plain lowercase name like `claude-code` or `chatgpt`, or unset it — it's optional |
 | `missing_source_file` | 400 | No `source` file in the multipart upload | Confirm the tarball is actually attached (`-F "source=@..."`) and the path exists |
 | `unsupported_storage_pattern` | 422 | App calls `window.storage`, which doesn't exist outside Claude Artifacts' sandbox | See `SKILL.md`'s "Storage requirements" — switch to SQLite, writing under `DATA_DIR` |
