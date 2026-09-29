@@ -337,6 +337,17 @@ if ! echo "$RESPONSE" | grep -q '"success":true'; then
   exit 1
 fi
 
+# A static site usually publishes while the request waits, so the reply can
+# already say "live": report it and stop, no polling needed.
+if [[ "$(echo "$RESPONSE" | json_field status)" == "live" ]]; then
+  echo "==> Deploy succeeded."
+  NEXT=$(echo "$RESPONSE" | json_field next)
+  [[ -n "$NEXT" ]] && { echo "==> Next:"; echo "$NEXT"; }
+  APP_URL=$(echo "$RESPONSE" | json_field links.app)
+  [[ -n "$APP_URL" ]] && { echo "==> Live:"; echo "$APP_URL"; }
+  exit 0
+fi
+
 # Accepted (202), not live yet: the build runs in the background. Poll the
 # status link until the app is live or has failed, rather than reporting
 # success off the 202 alone. Every URL a reply carries is under `links`.
