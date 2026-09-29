@@ -292,11 +292,15 @@ if [[ -n "$EMBARKO_AGENT_NAME" ]]; then
 fi
 
 echo "==> Deploying to ${DEPLOY_URL}"
+# Each array is expanded as ${A[@]+"${A[@]}"} rather than "${A[@]}": with
+# `set -u`, the bash 3.2 that ships with macOS treats an EMPTY array as
+# unbound and exits, which is every anonymous deploy (no auth header) and
+# most others (no landing-page, app-type or agent-name header).
 RESPONSE=$(curl -sS -X POST "$DEPLOY_URL" \
-  "${CURL_AUTH_ARGS[@]}" \
-  "${CURL_ATTRIBUTION_ARGS[@]}" \
-  "${CURL_APP_TYPE_ARGS[@]}" \
-  "${CURL_AGENT_ARGS[@]}" \
+  ${CURL_AUTH_ARGS[@]+"${CURL_AUTH_ARGS[@]}"} \
+  ${CURL_ATTRIBUTION_ARGS[@]+"${CURL_ATTRIBUTION_ARGS[@]}"} \
+  ${CURL_APP_TYPE_ARGS[@]+"${CURL_APP_TYPE_ARGS[@]}"} \
+  ${CURL_AGENT_ARGS[@]+"${CURL_AGENT_ARGS[@]}"} \
   -H "X-App-Name: ${APP_NAME}" \
   -H "X-App-Version: ${VERSION}" \
   -F "source=@${TARBALL}")
@@ -353,7 +357,7 @@ MAX_POLLS=$(( 600 / POLL_SECONDS ))
 echo ""
 echo "==> Deploy accepted — polling ${STATUS_URL}..."
 for _ in $(seq 1 "$MAX_POLLS"); do
-  STATUS_RESPONSE=$(curl -sS "${CURL_AUTH_ARGS[@]}" "$STATUS_URL")
+  STATUS_RESPONSE=$(curl -sS ${CURL_AUTH_ARGS[@]+"${CURL_AUTH_ARGS[@]}"} "$STATUS_URL")
   STATUS=$(echo "$STATUS_RESPONSE" | json_field status)
   NEXT=$(echo "$STATUS_RESPONSE" | json_field next)
   case "$STATUS" in
@@ -379,7 +383,7 @@ for _ in $(seq 1 "$MAX_POLLS"); do
       LOGS_URL=$(echo "$STATUS_RESPONSE" | json_field links.logs)
       if [[ -n "$LOGS_URL" ]]; then
         echo "==> Logs (${LOGS_URL}):"
-        curl -sS "${CURL_AUTH_ARGS[@]}" "$LOGS_URL"
+        curl -sS ${CURL_AUTH_ARGS[@]+"${CURL_AUTH_ARGS[@]}"} "$LOGS_URL"
         echo ""
       fi
       [[ -n "$NEXT" ]] && { echo "==> Next:"; echo "$NEXT"; }
