@@ -25,6 +25,16 @@ that a hand-rolled call would skip.
 the build and fails loudly if the deploy failed, so a zero exit is the
 real confirmation — nothing else needs verifying.
 
+**Then do what the script prints under `==> Next:`.** Every reply from
+Embarko carries a `next` field: the one thing to do now for the app's current
+state. After a first deploy without a token, it is how to claim the app
+before it is deleted. After a claimed deploy, it is the showcase. On a
+failure, it is how to fix it. Follow it rather than guessing.
+
+**Static sites are simpler.** A plain site (an `index.html` and assets,
+nothing to build) is published directly and is live within seconds. It has
+no logs and takes no env vars, because nothing runs on the server.
+
 ### App type — optional, but pass it when you can
 
 Tell Embarko what the app is for by setting `EMBARKO_APP_TYPE` to a short
@@ -201,6 +211,9 @@ Three things to get right:
 3. **You cannot read a variable's value back**, only its key. If you need
    to know a secret's value, ask the person — don't try to recover it from
    logs.
+4. **Static sites have no env vars.** Nothing runs on the server, so a write
+   or apply on a static site is refused with `409 not_supported_for_static`.
+   Put configuration in the site's files instead.
 
 Prefer fixing the code and redeploying. Roll back when the app is down and
 the cause isn't obvious yet — it restores service while you investigate.
@@ -400,10 +413,22 @@ curl -X POST "https://ship.embarko.ai/apps/<app-name>/customer-query" \
   -H "Authorization: Bearer ${DEPLOY_TOKEN}" \
   -H "X-Agent-Name: <your agent's name, e.g. Claude Code>" \
   -H "Content-Type: application/json" \
-  -d '{"type": "feature", "message": "<what happened or what would help>"}'
+  -d '{"type": "platform_bug", "message": "<what happened or what would help>"}'
 ```
 
-`type` is `"feature"`, `"feedback"`, or `"other"`. `X-Agent-Name` is
+`type` says what kind of problem it was:
+
+| `type` | Use it when |
+| --- | --- |
+| `platform_bug` | Embarko itself misbehaved |
+| `missing_capability` | the app needs something Embarko doesn't have |
+| `docs_issue` | the docs were wrong or unclear |
+| `unexpected_behavior` | it worked, but not the way the docs say |
+| `other` | anything else |
+
+`feature` and `feedback` are still accepted too.
+
+`X-Agent-Name` is
 required and free text — identify yourself honestly (e.g. "Claude Code",
 "Claude in [product]"), there's no fixed list to match against. If
 there's no app context yet (nothing deployed, or the person wants to
@@ -413,7 +438,7 @@ anonymous path instead — no token, no app name, just an email:
 ```bash
 curl -X POST "https://ship.embarko.ai/api/public/customer-query" \
   -H "Content-Type: application/json" \
-  -d '{"type": "feedback", "message": "<...>", "email": "<their email>"}'
+  -d '{"type": "other", "message": "<...>", "email": "<their email>"}'
 ```
 
 Both return `{"id": "..."}` on success (`201`) — that's confirmation
@@ -449,12 +474,17 @@ curl -X POST "https://ship.embarko.ai/apps" \
   [App type](#app-type--optional-but-pass-it-when-you-can), or leave the line out.
 - Omit `Authorization` **entirely** for an anonymous deploy — never send
   an empty or invented token, which is a hard `401`.
-- The response is `202`, meaning *accepted*, not *live*. Poll its
-  `statusUrl` every ~10s until `deploy.status` is no longer
-  `"in_progress"`; on `"failed"`, fetch `logsUrl`, fix, redeploy. Never
+- The response is `202`, meaning *accepted*, not *live*. Every reply has
+  the same shape: `status`, `app`, `next` (the one thing to do now) and
+  `links` (the URLs `next` refers to). Poll `links.status` every ~10s (2s
+  for a static site) until `status` is `"live"`; on `"failed"` or
+  `"crashed"`, read `links.logs` from that reply, fix, redeploy. Never
   report success off the `202` alone.
 - Every non-2xx response carries a machine-readable `code` alongside the
-  human-readable `error` — branch on `code`, whose wording is stable.
+  human-readable `error` — branch on `code`, whose wording is stable — and
+  a `next` saying what to do about it.
+- Every reply carries `links.feedback`. If something fails or is
+  confusing, report it there.
 
 ## Reference
 
