@@ -25,6 +25,43 @@ that a hand-rolled call would skip.
 the build and fails loudly if the deploy failed, so a zero exit is the
 real confirmation — nothing else needs verifying.
 
+### App type — optional, but pass it when you can
+
+Tell Embarko what the app is for by setting `EMBARKO_APP_TYPE` to a short
+label (60 characters at most). Examples: `personal website`, `portfolio`,
+`landing page`, `blog`, `task management`, `feedback system`, `dashboard`,
+`e-commerce store`. Use your own short phrase if none of these fit.
+
+```bash
+EMBARKO_APP_TYPE="portfolio" ./scripts/deploy.sh path/to/app
+```
+
+- If you built the app, or the user already said what it's for, use that.
+  Don't ask.
+- If you can't tell, ask the user once, before the first deploy: *"What
+  kind of app is this (for example a personal website, portfolio, task
+  manager or feedback system)? You can skip this."*
+- If they skip it, deploy without it. Never hold up a deploy waiting for
+  this answer.
+- You only need to send it once. A redeploy without it keeps the earlier
+  value.
+
+### Agent name — say who you are
+
+Set `EMBARKO_AGENT_NAME` to the agent or product you are running as, in
+lowercase: `claude-code`, `claude`, `chatgpt`, `codex`, `cursor`,
+`copilot`, `gemini`... It shows up in the app's deploy history so the
+owner can see which agent deployed what. It is only a label and changes
+nothing about what you can do. Inside Claude Code the script fills it in
+by itself.
+
+```bash
+EMBARKO_AGENT_NAME="claude" EMBARKO_APP_TYPE="portfolio" ./scripts/deploy.sh path/to/app
+```
+
+When you call the agent API directly (rollback, applying env vars), send
+the same value as an `X-Agent-Name` header.
+
 Deploying the same app again is the same command: reuse the same app name
 (the script infers it from the directory/manifest, so this happens
 automatically) and the new version replaces the old one.
@@ -122,23 +159,24 @@ sending the person to the dashboard. Same token, addressed by app name:
 ```bash
 BASE="https://ship.embarko.ai/api/apps/<app-name>"
 AUTH="Authorization: Bearer ${DEPLOY_TOKEN}"
+AGENT="X-Agent-Name: claude"   # your agent name — see "Agent name" above
 
 # Which variables are set (keys only — values are never returned)
 curl -H "$AUTH" "$BASE/env-vars"
 
 # Update one variable, and make it take effect straight away
-curl -X PUT -H "$AUTH" -H "Content-Type: application/json" \
+curl -X PUT -H "$AUTH" -H "$AGENT" -H "Content-Type: application/json" \
   -d '{"value":"sk_live_...","apply":true}' "$BASE/env-vars/STRIPE_SECRET_KEY"
 
 # Or set several at once (a merge: variables you don't list are left alone)
-curl -X PUT -H "$AUTH" -H "Content-Type: application/json" \
+curl -X PUT -H "$AUTH" -H "$AGENT" -H "Content-Type: application/json" \
   -d '{"vars":[{"key":"A","value":"1"},{"key":"B","value":"2"}],"apply":true}' "$BASE/env-vars"
 
 # Deployment history, newest first — `rollbackTarget: true` marks a valid target
 curl -H "$AUTH" "$BASE/deployments"
 
 # Undo the last deploy (or pass {"deploymentId":"..."} for a specific one)
-curl -X POST -H "$AUTH" -H "Content-Type: application/json" -d '{}' "$BASE/rollback"
+curl -X POST -H "$AUTH" -H "$AGENT" -H "Content-Type: application/json" -d '{}' "$BASE/rollback"
 ```
 
 Three things to get right:
@@ -392,12 +430,16 @@ curl -X POST "https://ship.embarko.ai/apps" \
   -H "Authorization: Bearer ${DEPLOY_TOKEN}" \
   -H "X-App-Name: <app-name>" \
   -H "X-App-Version: <git sha or timestamp>" \
+  -H "X-App-Type: <app type, optional>" \
+  -H "X-Agent-Name: <your agent name, e.g. claude>" \
   -F "source=@/tmp/<app-name>.tar.gz"
 ```
 
 - The archive's contents must be at its **root** (no wrapper folder) —
   `tar -tzf` should show `package.json`, not `myapp/package.json`.
 - `X-App-Name` is lowercase letters, numbers, and dashes only.
+- `X-App-Type` is optional. Pick it as described in
+  [App type](#app-type--optional-but-pass-it-when-you-can), or leave the line out.
 - Omit `Authorization` **entirely** for an anonymous deploy — never send
   an empty or invented token, which is a hard `401`.
 - The response is `202`, meaning *accepted*, not *live*. Poll its

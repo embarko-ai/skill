@@ -21,6 +21,18 @@
 #                    after 24h unless later claimed with a real token —
 #                    see https://embarko.ai/docs for how to get one,
 #                    including by email with no dashboard visit at all).
+#   EMBARKO_APP_TYPE
+#                  — what the app is for, as a short label (max 60 chars):
+#                    "personal website", "portfolio", "task management",
+#                    "feedback system"... Sent as the `X-App-Type` header.
+#                    Optional — set it from what you know about the app, or
+#                    ask the user once; leave it unset if they skip it.
+#   EMBARKO_AGENT_NAME
+#                  — which agent is deploying, e.g. "claude-code", "claude",
+#                    "chatgpt", "cursor". Sent as the `X-Agent-Name` header
+#                    so the app's deploy history shows who deployed it.
+#                    Optional; falls back to "claude-code" when run inside
+#                    Claude Code, and is omitted otherwise.
 #   EMBARKO_LP_VARIANT
 #                  — landing-page attribution only: which marketing page
 #                    produced this deploy. Sent as the `lp_variant` header,
@@ -262,10 +274,29 @@ if [[ -n "${EMBARKO_LP_VARIANT:-}" ]]; then
   CURL_ATTRIBUTION_ARGS=(-H "lp_variant: ${EMBARKO_LP_VARIANT}")
 fi
 
+# What the app is for, if known — same array treatment again.
+CURL_APP_TYPE_ARGS=()
+if [[ -n "${EMBARKO_APP_TYPE:-}" ]]; then
+  CURL_APP_TYPE_ARGS=(-H "X-App-Type: ${EMBARKO_APP_TYPE}")
+fi
+
+# Which agent is deploying — same array treatment. Claude Code marks its
+# own shells with CLAUDECODE=1, so that one needs no instruction to set.
+EMBARKO_AGENT_NAME="${EMBARKO_AGENT_NAME:-}"
+if [[ -z "$EMBARKO_AGENT_NAME" && "${CLAUDECODE:-}" == "1" ]]; then
+  EMBARKO_AGENT_NAME="claude-code"
+fi
+CURL_AGENT_ARGS=()
+if [[ -n "$EMBARKO_AGENT_NAME" ]]; then
+  CURL_AGENT_ARGS=(-H "X-Agent-Name: ${EMBARKO_AGENT_NAME}")
+fi
+
 echo "==> Deploying to ${DEPLOY_URL}"
 RESPONSE=$(curl -sS -X POST "$DEPLOY_URL" \
   "${CURL_AUTH_ARGS[@]}" \
   "${CURL_ATTRIBUTION_ARGS[@]}" \
+  "${CURL_APP_TYPE_ARGS[@]}" \
+  "${CURL_AGENT_ARGS[@]}" \
   -H "X-App-Name: ${APP_NAME}" \
   -H "X-App-Version: ${VERSION}" \
   -F "source=@${TARBALL}")
