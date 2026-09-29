@@ -17,6 +17,8 @@ Every non-2xx response from `POST /apps` includes a machine-readable `code` fiel
 | `app_name_check_failed` | 502 | Embarko couldn't verify app-name availability (an internal service was unreachable) | Transient — retry once; if it keeps happening, this is on Embarko's side, not the app |
 | `invalid_app_version` | 400 | `X-App-Version` doesn't match `^[a-zA-Z0-9._-]+$` | Use only letters, numbers, dots, dashes, underscores — see Step 2 in `SKILL.md` |
 | `invalid_app_type` | 400 | `X-App-Type` (`EMBARKO_APP_TYPE`) is over 60 characters or has non-printable/non-ASCII characters | Shorten it to a plain label like `portfolio`, or unset it — it's optional |
+| `not_supported_for_static` | 409 | An env var write/apply (or memory change) on a **static site**. Nothing runs on the server, so there is nothing to configure | Put configuration in the site's files, or deploy it as a server app under a new app name |
+| `app_kind_changed` | 422 | The app is a static site and this upload is a server app — a static site can't become one | Deploy this version under a new app name |
 | `invalid_agent_name` | 400 | `X-Agent-Name` (`EMBARKO_AGENT_NAME`) is over 60 characters or has non-printable/non-ASCII characters | Use a plain lowercase name like `claude-code` or `chatgpt`, or unset it — it's optional |
 | `missing_source_file` | 400 | No `source` file in the multipart upload | Confirm the tarball is actually attached (`-F "source=@..."`) and the path exists |
 | `unsupported_storage_pattern` | 422 | App calls `window.storage`, which doesn't exist outside Claude Artifacts' sandbox | See `SKILL.md`'s "Storage requirements" — switch to SQLite, writing under `DATA_DIR` |

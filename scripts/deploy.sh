@@ -305,64 +305,94 @@ echo "==> Response:"
 echo "$RESPONSE"
 rm -f "$TARBALL"
 
+# Reads one field from a JSON reply; prints nothing if it is absent.
+json_field() {
+  node -e '
+    let v = JSON.parse(require("fs").readFileSync(0));
+    for (const k of process.argv[1].split(".")) v = v == null ? undefined : v[k];
+    if (v !== undefined && v !== null) console.log(v);
+  ' "$1" 2>/dev/null || true
+}
+
 if ! echo "$RESPONSE" | grep -q '"success":true'; then
-  # Every error response carries a machine-readable `code` field — surface
-  # it distinctly so it isn't buried in the raw JSON above. See
-  # scripts/troubleshoot.md's error code reference for what each means.
-  CODE=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).code' 2>/dev/null || true)
-  if [[ -n "$CODE" && "$CODE" != "undefined" ]]; then
-    echo "==> Deploy failed (code: ${CODE}) — look this code up before retrying:"
-    echo "    scripts/troubleshoot.md, or https://embarko.ai/troubleshoot"
+  # Every error carries a machine-readable `code` and a `next` step. The
+  # next step is what to do about it, so it is printed last.
+  CODE=$(echo "$RESPONSE" | json_field code)
+  NEXT=$(echo "$RESPONSE" | json_field next)
+  if [[ -n "$CODE" ]]; then
+    echo "==> Deploy failed (code: ${CODE})."
   else
     echo "==> Deploy failed — inspect the response above before retrying."
+  fi
+  if [[ -n "$NEXT" ]]; then
+    echo "==> Next:"
+    echo "$NEXT"
+  else
+    echo "    See scripts/troubleshoot.md, or https://embarko.ai/troubleshoot"
   fi
   exit 1
 fi
 
-ORPHAN_MESSAGE=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).orphan?.message' 2>/dev/null || true)
-if [[ -n "$ORPHAN_MESSAGE" && "$ORPHAN_MESSAGE" != "undefined" ]]; then
-  echo ""
-  echo "==> This is a TEMPORARY (anonymous) deploy:"
-  echo "$ORPHAN_MESSAGE"
-fi
+# Accepted (202), not live yet: the build runs in the background. Poll the
+# status link until the app is live or has failed, rather than reporting
+# success off the 202 alone. Every URL a reply carries is under `links`.
+STATUS_URL=$(echo "$RESPONSE" | json_field links.status)
+KIND=$(echo "$RESPONSE" | json_field app.kind)
 
-# Deploy is accepted (202) at this point, not yet live — the build/deploy
-# itself runs in the background. Poll statusUrl until it's no longer
-# in_progress rather than reporting success off the 202 alone.
-STATUS_URL=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).statusUrl' 2>/dev/null || true)
-LOGS_URL=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).logsUrl' 2>/dev/null || true)
-APP_URL=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).url' 2>/dev/null || true)
-
-if [[ -z "$STATUS_URL" || "$STATUS_URL" == "undefined" ]]; then
+if [[ -z "$STATUS_URL" ]]; then
   echo ""
-  echo "==> Deploy accepted, but no statusUrl in the response — verify the app is actually running before considering this complete."
+  echo "==> Deploy accepted, but no status link in the response — verify the app is actually running before considering this complete."
   exit 0
 fi
 
+# A static site is published in a second or two; a build takes minutes.
+POLL_SECONDS=10
+[[ "$KIND" == "static" ]] && POLL_SECONDS=2
+MAX_POLLS=$(( 600 / POLL_SECONDS ))
+
 echo ""
-echo "==> Deploy accepted — polling ${STATUS_URL} for build/deploy progress..."
-for _ in $(seq 1 60); do
+echo "==> Deploy accepted — polling ${STATUS_URL}..."
+for _ in $(seq 1 "$MAX_POLLS"); do
   STATUS_RESPONSE=$(curl -sS "${CURL_AUTH_ARGS[@]}" "$STATUS_URL")
-  DEPLOY_STATUS=$(echo "$STATUS_RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0)).deploy.status' 2>/dev/null || echo "unknown")
-  if [[ "$DEPLOY_STATUS" == "success" ]]; then
-    echo "==> Deploy succeeded."
-    # Printed on its own line, last: this is the one piece of output the
-    # caller (or the agent running this) actually reports back to a person,
-    # and digging it out of the raw JSON above shouldn't be their job.
-    if [[ -n "$APP_URL" && "$APP_URL" != "undefined" ]]; then
-      echo "==> Live:"
-      echo "$APP_URL"
-    fi
-    exit 0
-  elif [[ "$DEPLOY_STATUS" == "failed" ]]; then
-    echo "==> Deploy failed. Logs (${LOGS_URL}):"
-    curl -sS "${CURL_AUTH_ARGS[@]}" "$LOGS_URL"
-    echo ""
-    echo "==> See scripts/troubleshoot.md (or https://embarko.ai/troubleshoot) for this error, then redeploy."
-    exit 1
-  fi
-  sleep 10
+  STATUS=$(echo "$STATUS_RESPONSE" | json_field status)
+  NEXT=$(echo "$STATUS_RESPONSE" | json_field next)
+  case "$STATUS" in
+    live)
+      echo "==> Deploy succeeded."
+      # The reply's `next` says what to do now — for an app deployed
+      # without a token, that is how to claim it before it is deleted.
+      if [[ -n "$NEXT" ]]; then
+        echo "==> Next:"
+        echo "$NEXT"
+      fi
+      # Printed on its own line, last: the one thing to report back. The
+      # app's address only appears once it is live, as links.app.
+      APP_URL=$(echo "$STATUS_RESPONSE" | json_field links.app)
+      if [[ -n "$APP_URL" ]]; then
+        echo "==> Live:"
+        echo "$APP_URL"
+      fi
+      exit 0
+      ;;
+    failed|crashed)
+      echo "==> Deploy ${STATUS}."
+      LOGS_URL=$(echo "$STATUS_RESPONSE" | json_field links.logs)
+      if [[ -n "$LOGS_URL" ]]; then
+        echo "==> Logs (${LOGS_URL}):"
+        curl -sS "${CURL_AUTH_ARGS[@]}" "$LOGS_URL"
+        echo ""
+      fi
+      [[ -n "$NEXT" ]] && { echo "==> Next:"; echo "$NEXT"; }
+      exit 1
+      ;;
+    not_deployed)
+      echo "==> Nothing is running under this name."
+      [[ -n "$NEXT" ]] && { echo "==> Next:"; echo "$NEXT"; }
+      exit 1
+      ;;
+  esac
+  sleep "$POLL_SECONDS"
 done
 
-echo "==> Still in progress after 10 minutes of polling — check ${STATUS_URL} manually before assuming something is wrong."
+echo "==> Still not live after 10 minutes of polling — check ${STATUS_URL} manually before assuming something is wrong."
 exit 1
