@@ -91,6 +91,13 @@ If the script isn't present in your environment, see
 
    **One upload = one app.** A repo containing both a frontend and a
    backend is two deploys under two app names, not one.
+6. **No WebSockets and no cron jobs.** WebSocket connections aren't
+   supported, including libraries built on them (Socket.IO, `ws`), so
+   realtime features like chat or live dashboards won't work. Poll over
+   plain HTTP instead. There's no cron or scheduler either, and an
+   in-process one (`node-cron`, `setInterval`) isn't guaranteed to run
+   because the process restarts on every redeploy. If the app depends on
+   either, tell the person before deploying.
 
 The app name is also the live subdomain — deployed apps are served at
 `https://<app-name>.embarko.app`. Lowercase letters, numbers and
