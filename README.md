@@ -40,9 +40,11 @@ The same script is the whole thing if you'd rather run it yourself:
 ```
 
 Once it's deployed (with a token), you can also ask Claude to **showcase**
-the app on an Embarko showcase collection — e.g. "showcase this app on the
-`<collection-slug>` page." Claude will ask you for the listing details
-(name, tagline, your name, and any optional extras) before submitting.
+the app — on the public showcase page ("showcase this app") or on an
+event showcase page ("showcase this app on the `<slug>` page", with the
+organiser's submit code if you have one; without it the organiser approves
+it first). Claude will ask you for the listing details (name, tagline, your
+name, and any optional extras) before submitting.
 
 ### A note on where this works
 

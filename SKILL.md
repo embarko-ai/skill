@@ -1,6 +1,6 @@
 ---
 name: embarko-deploy
-description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app, or to showcase / feature / list a deployed app on an Embarko showcase collection.
+description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app, or to showcase / feature / list a deployed app on an Embarko showcase page (public or event).
 ---
 
 # Embarko Deploy
@@ -289,45 +289,60 @@ keeps its own URL — worth saying, since both look like they would break.
 
 ## Showcasing the app
 
-A deployed app can be listed on a public Embarko showcase page (someone's
-**collection**). Do this only when the person asks. It needs a deploy
-token — an unclaimed temporary app must be claimed first.
+A deployed app can be shown on a **showcase page**: the public one
+(`/showcase`, live at once) or an event showcase page (`/showcase/<slug>`,
+made by an organiser for a hackathon or any event). Do this only when the
+person asks. It needs a deploy token — an unclaimed temporary app must be
+claimed first.
 
-**Ask the person for all of the details below before sending — required
-ones marked — don't guess or send placeholders; this call publishes.**
-You may draft `tagline`/`whatItDoes` from your knowledge of the app for
-them to approve. `name`, `tagline`, `whatItDoes`, `category` and `tags`
-are also used for the app's SEO (page title, meta description, keywords),
-so write them as real, searchable copy — what the app does and who it's
-for, in plain words — not marketing fluff or placeholder text. Omit
-optional keys they don't give you. Re-running the `PUT` for the same app
-updates the listing.
+**Check for an existing listing first:**
+`GET https://ship.embarko.ai/api/public/showcase/apps/<app-name>` (no auth).
+`200` returns the current details — reuse them and send only what changes.
+`404` means it is not shown anywhere yet, so collect everything below.
+
+**Ask the person for the details below before sending — required ones
+marked — don't guess or send placeholders; this call publishes.** You may
+draft `tagline`/`description` from your knowledge of the app for them to
+approve. `name`, `tagline`, `description`, `category` and `tags` are also
+used for SEO, so write real, searchable copy, not fluff. Omit keys they
+don't give you. The call is a **merge**: re-running it changes only the
+keys sent (`""` clears one), so a later update can be a single field.
 
 ```bash
 curl -X PUT "https://ship.embarko.ai/api/apps/<app-name>/showcase" \
   -H "Authorization: Bearer ${DEPLOY_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
-    "collectionSlug": "<showcase-page-slug>",          // required — slug of the collection they're submitting to
-    "name": "<app-name>",                              // required — name shown on the showcase
-    "tagline": "<1-3-liner-description-of-app>",       // required
-    "creatorName": "<their-name>",                     // required
-    "whatItDoes": "<longer-description>",
-    "whyBuilt": "<why-they-built-it>",
-    "creatorProfile": "<https-profile-url>",
-    "builtWith": "<Claude|Codex|Cursor|Lovable|Replit|Other>",           // exactly one of these
-    "category": "<AI Tool|Personal|Business|Productivity|Education|Game|Developer Tool|Other>",  // exactly one of these
-    "tags": ["<tag>", "<tag>"],
-    "videoUrl": "<https-video-url>",
-    "screenshotUrl": "<https-image-url>"
+    "collectionSlug": "<showcase-page-slug>",   // omit for the public showcase page
+    "code": "<submit-code>",               // optional — the page's submit code from the organiser; skips approval
+    "name": "<app-name>",                  // optional — defaults to the app's current name; becomes the page title and renames the app on the dashboard
+    "tagline": "<one line>",               // required on first submit — meta description; what it does + who it's for, ~60-160 chars
+    "creatorName": "<their-name>",         // required on first submit — shown as the author
+    "description": "<what it does>",       // page body text; plain searchable words, features and use cases, up to 4000 chars
+    "story": "<why they built it>",        // the problem it solves, in their words, up to 600 chars
+    "creatorProfile": "<https-profile-url>",   // links the author; GitHub, X, LinkedIn or site
+    "contactEmail": "<email>",             // opt-in "Contact Dev" address; ask before sending
+    "builtWith": "<Claude|Codex|Cursor|Lovable|Replit|Other>",
+    "category": "<AI Tool|Personal|Business|Productivity|Education|Game|Developer Tool|Other>",   // a browse filter; pick the closest
+    "tags": ["<tag>", "<tag>"],            // max 8 — meta keywords; terms people would search for, not the category again
+    "screenshotUrls": ["<https-image-url>"],   // max 10 — the first is the card and social-share image; a real screenshot, not a logo
+    "videoUrl": "<https-video-url>",       // demo video; YouTube/Loom link
+    "customHtml": "<raw HTML>"             // extra page content, up to 50k; headings and text are indexed, so real copy helps
   }'
 ```
 
-A `2xx` means it's listed — relay any URL in the response. A `4xx` carries
-a `code`/`error`; fix the input (wrong slug, missing required field,
-value not in the list above) rather than retrying the same request.
+The reply (`201` newly placed, `200` updated) carries `status` and `next`:
 
+- `approved` — live; relay the URL in `next`.
+- `pending` — waiting for the showcase page's organiser. Tell the person it
+  is awaiting approval; resending with the page's `code` approves it at
+  once. Apps from the organiser's own company are approved automatically.
+- `rejected` — `next` has the organiser's reason; resubmitting puts it back
+  to pending.
 
+Same app can be on the public page and on several event pages — one `PUT` each.
+`404 SHOWCASE_COLLECTION_UNKNOWN` means the slug is wrong; other `4xx`
+carry a `code`/`error` — fix the input rather than retrying the same request.
 
 ## Database support (optional)
 
