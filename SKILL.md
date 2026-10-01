@@ -289,60 +289,70 @@ keeps its own URL — worth saying, since both look like they would break.
 
 ## Showcasing the app
 
-A deployed app can be shown on a **showcase page**: the public one
-(`/showcase`, live at once) or an event showcase page (`/showcase/<slug>`,
-made by an organiser for a hackathon or any event). Do this only when the
-person asks. It needs a deploy token — an unclaimed temporary app must be
-claimed first.
+Embarko Showcase (`embarko.ai/showcase`) is a public gallery of apps built
+with AI agents. A listing is a page about the app: what it does, who built
+it, screenshots, link to the live app. Search engines index it. Only when
+the person asks; needs a deploy token (claim the app first).
 
-**Check for an existing listing first:**
-`GET https://ship.embarko.ai/api/public/showcase/apps/<app-name>` (no auth).
-`200` returns the current details — reuse them and send only what changes.
-`404` means it is not shown anywhere yet, so collect everything below.
+Two kinds of page:
 
-**Ask the person for the details below before sending — required ones
-marked — don't guess or send placeholders; this call publishes.** You may
-draft `tagline`/`description` from your knowledge of the app for them to
-approve. `name`, `tagline`, `description`, `category` and `tags` are also
-used for SEO, so write real, searchable copy, not fluff. Omit keys they
-don't give you. The call is a **merge**: re-running it changes only the
-keys sent (`""` clears one), so a later update can be a single field.
+| Page | Where | Live |
+| --- | --- | --- |
+| Public (default) | `/showcase` | at once |
+| Event (hackathon, demo day) | `/showcase/<slug>` | when the organiser approves, or at once with its submit code |
+
+**Steps**
+
+1. `GET https://ship.embarko.ai/api/public/showcase/apps/<app-name>` (no
+   auth). `200` = already listed, send only what changes. `404` = not yet.
+2. Draft the listing from the codebase (tagline, description, story,
+   category, tags, builtWith, creatorName, screenshots). Show it once;
+   ask only what you can't know (profile link, contact email, event slug
+   and code). No placeholders — this publishes. Copy is indexed, so write
+   real, searchable text.
+3. `PUT`. It merges: only keys sent change, `""` clears one.
+
+This is a user-built app showcased on Embarko. Fill the fields to maximize
+discoverability and help the creator promote the app: clear, accurate,
+SEO-friendly content based on what the app actually does, who it is for,
+and the problem it solves.
 
 ```bash
 curl -X PUT "https://ship.embarko.ai/api/apps/<app-name>/showcase" \
   -H "Authorization: Bearer ${DEPLOY_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
-    "collectionSlug": "<showcase-page-slug>",   // omit for the public showcase page
-    "code": "<submit-code>",               // optional — the page's submit code from the organiser; skips approval
-    "name": "<app-name>",                  // optional — defaults to the app's current name; becomes the page title and renames the app on the dashboard
-    "tagline": "<one line>",               // required on first submit — meta description; what it does + who it's for, ~60-160 chars
-    "creatorName": "<their-name>",         // required on first submit — shown as the author
-    "description": "<what it does>",       // page body text; plain searchable words, features and use cases, up to 4000 chars
-    "story": "<why they built it>",        // the problem it solves, in their words, up to 600 chars
-    "creatorProfile": "<https-profile-url>",   // links the author; GitHub, X, LinkedIn or site
-    "contactEmail": "<email>",             // opt-in "Contact Dev" address; ask before sending
+    "collectionSlug": "<showcase-page-slug>",   // event page; omit for public
+    "code": "<submit-code>",               // event's code; skips approval
+    "name": "<app-name>",                  // page title; defaults to the app's name
+    "tagline": "<one line>",               // required first time — meta description, what it does + for whom
+    "creatorName": "<name>",               // required first time
+    "description": "<what it does>",       // page body, up to 4000 chars
+    "story": "<why built>",                // up to 600 chars
+    "creatorProfile": "<https-url>",
+    "contactEmail": "<email>",             // opt-in "Contact Dev"; ask first
     "builtWith": "<Claude|Codex|Cursor|Lovable|Replit|Other>",
-    "category": "<AI Tool|Personal|Business|Productivity|Education|Game|Developer Tool|Other>",   // a browse filter; pick the closest
-    "tags": ["<tag>", "<tag>"],            // max 8 — meta keywords; terms people would search for, not the category again
-    "screenshotUrls": ["<https-image-url>"],   // max 10 — the first is the card and social-share image; a real screenshot, not a logo
-    "videoUrl": "<https-video-url>",       // demo video; YouTube/Loom link
-    "customHtml": "<raw HTML>"             // extra page content, up to 50k; headings and text are indexed, so real copy helps
+    "category": "<AI Tool|Personal|Business|Productivity|Education|Game|Developer Tool|Other>",
+    "tags": ["<tag>"],                     // max 8 — search terms
+    "screenshotUrls": ["<https-url>"],     // max 10 — first is the card image
+    "videoUrl": "<https-url>",
+    "customHtml": "<raw HTML>"             // extra page content, up to 50k
   }'
 ```
 
-The reply (`201` newly placed, `200` updated) carries `status` and `next`:
+Reply: `201` new / `200` updated, with `status` and `next`.
 
-- `approved` — live; relay the URL in `next`.
-- `pending` — waiting for the showcase page's organiser. Tell the person it
-  is awaiting approval; resending with the page's `code` approves it at
-  once. Apps from the organiser's own company are approved automatically.
-- `rejected` — `next` has the organiser's reason; resubmitting puts it back
-  to pending.
+- `approved` — live; give the person the URL in `next`, then follow its
+  promotion steps: offer platform-specific posts (what they built, who it
+  helps, why try it); for Instagram, tag @Embarko and invite @Embarko as
+  collaborator. If no `videoUrl`, suggest a short demo video — qualifying
+  approved videos get 1 year of Embarko Pro for the project.
+- `pending` — organiser must approve; say so. Resend with `code` to skip.
+- `rejected` — `next` has the reason; resubmit goes back to pending.
 
-Same app can be on the public page and on several event pages — one `PUT` each.
-`404 SHOWCASE_COLLECTION_UNKNOWN` means the slug is wrong; other `4xx`
-carry a `code`/`error` — fix the input rather than retrying the same request.
+Same app can be on the public page and many events: one `PUT` each.
+`404 SHOWCASE_COLLECTION_UNKNOWN` = wrong slug. Other `4xx`: fix the input,
+don't retry as is.
 
 ## Database support (optional)
 
