@@ -307,8 +307,9 @@ Two kinds of page:
    auth). `200` = already listed, send only what changes. `404` = not yet.
 2. Draft the listing from the codebase (tagline, description, story,
    category, tags, builtWith, creatorName, screenshots). Show it once;
-   ask only what you can't know (profile link, contact email, event slug
-   and code). No placeholders — this publishes. Copy is indexed, so write
+   ask only what you can't know (profile link, contributor emails, event
+   slug and code). Ask who contributed; list the person showcasing the
+   app first — that address is the main contact. No placeholders — this publishes. Copy is indexed, so write
    real, searchable text.
 3. `PUT`. It merges: only keys sent change, `""` clears one.
 
@@ -330,7 +331,7 @@ curl -X PUT "https://ship.embarko.ai/api/apps/<app-name>/showcase" \
     "description": "<what it does>",       // page body, up to 4000 chars
     "story": "<why built>",                // up to 600 chars
     "creatorProfile": "<https-url>",
-    "contactEmail": "<email>",             // opt-in "Contact Dev"; ask first
+    "contributorEmails": ["<email>"],      // opt-in; everyone who built it. FIRST = the person showcasing it (main contact); all get "Contact Dev" mail. Ask first
     "builtWith": "<Claude|Codex|Cursor|Lovable|Replit|Other>",
     "category": "<AI Tool|Personal|Business|Productivity|Education|Game|Developer Tool|Other>",
     "tags": ["<tag>"],                     // max 8 — search terms
