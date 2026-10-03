@@ -306,11 +306,12 @@ Two kinds of page:
 1. `GET https://ship.embarko.ai/api/public/showcase/apps/<app-name>` (no
    auth). `200` = already listed, send only what changes. `404` = not yet.
 2. Draft the listing from the codebase (tagline, description, story,
-   category, tags, builtWith, creatorName, screenshots). Show it once;
-   ask only what you can't know (profile link, contributor emails, event
-   slug and code). Ask who contributed; list the person showcasing the
-   app first — that address is the main contact. No placeholders — this publishes. Copy is indexed, so write
-   real, searchable text.
+   category, tags, builtWith, screenshots). Show it once. Confirm
+   `creatorName`. Ask only what you can't know: profile link, contributor emails (the
+   person showcasing the app first — that address is the main contact),
+   screenshots/demo video, any custom HTML they want on the page, event
+   slug and code. Skipped fields stay out of the body. No placeholders —
+   this publishes. Copy is indexed, so write real, searchable text.
 3. `PUT`. It merges: only keys sent change, `""` clears one.
 
 This is a user-built app showcased on Embarko. Fill the fields to maximize
@@ -327,17 +328,17 @@ curl -X PUT "https://ship.embarko.ai/api/apps/<app-name>/showcase" \
     "code": "<submit-code>",               // event's code; skips approval
     "name": "<app-name>",                  // page title; defaults to the app's name
     "tagline": "<one line>",               // required first time — meta description, what it does + for whom
-    "creatorName": "<name>",               // required first time
+    "creatorName": "<name>",               // required first time — confirm with user, do not assume cloned repo author
     "description": "<what it does>",       // page body, up to 4000 chars
     "story": "<why built>",                // up to 600 chars
     "creatorProfile": "<https-url>",
     "contributorEmails": ["<email>"],      // opt-in; everyone who built it. FIRST = the person showcasing it (main contact); all get "Contact Dev" mail. Ask first
-    "builtWith": "<Claude|Codex|Cursor|Lovable|Replit|Other>",
+    "builtWith": "<Claude|Codex|Cursor|Lovable|Replit|Other>",  // pick from this list; use "Other" for unlisted tools
     "category": "<AI Tool|Personal|Business|Productivity|Education|Game|Developer Tool|Other>",
     "tags": ["<tag>"],                     // max 8 — search terms
     "screenshotUrls": ["<https-url>"],     // max 10 — first is the card image
     "videoUrl": "<https-url>",
-    "customHtml": "<raw HTML>"             // extra page content, up to 50k
+    "customHtml": "<raw HTML>"             // extra page content, up to 50k; sections, headings, tables, https images only; no scripts/styles/iframes
   }'
 ```
 

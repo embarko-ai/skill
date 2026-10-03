@@ -43,6 +43,16 @@
 
 set -euo pipefail
 
+if [[ "${1:-}" =~ ^(-h|--help)$ ]]; then
+  echo "Usage: ./deploy.sh [path-to-app-dir] [app-name] [version]"
+  echo ""
+  echo "Package an app directory and deploy it to Embarko."
+  echo "  path-to-app-dir  Defaults to current directory"
+  echo "  app-name         Defaults to package.json name or folder name"
+  echo "  version          Defaults to git short SHA or timestamp"
+  exit 0
+fi
+
 APP_DIR="${1:-.}"
 DEPLOY_URL="https://ship.embarko.ai/apps"
 
@@ -85,7 +95,7 @@ if [[ -n "${2:-}" ]]; then
 elif [[ -f "$APP_DIR/package.json" ]]; then
   APP_NAME=$(node -p "require('$APP_DIR/package.json').name" 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')
 else
-  APP_NAME=$(basename "$(cd "$APP_DIR" && pwd)" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-')
+  APP_NAME=$(basename "$(cd -- "$APP_DIR" && pwd)" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-')
 fi
 
 if [[ ! "$APP_NAME" =~ ^[a-z0-9-]+$ ]]; then
