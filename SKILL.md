@@ -109,6 +109,12 @@ If the script isn't present in your environment, see
    in-process one (`node-cron`, `setInterval`) isn't guaranteed to run
    because the process restarts on every redeploy. If the app depends on
    either, tell the person before deploying.
+7. **Config does not travel with the upload.** A local `.env` is not
+   turned into app config, and `PORT` is set by Embarko. If the app needs
+   secrets or settings to run, list the keys the code reads, confirm with
+   the person which ones belong in production and what their values are,
+   then set them with `PUT $BASE/env-vars` and `"apply": true` — see
+   "Operating the app" below.
 
 The app name is also the live subdomain — deployed apps are served at
 `https://<app-name>.embarko.app`. Lowercase letters, numbers and
@@ -215,6 +221,9 @@ Three things to get right:
 4. **Static sites have no env vars.** Nothing runs on the server, so a write
    or apply on a static site is refused with `409 not_supported_for_static`.
    Put configuration in the site's files instead.
+5. **First deploy of an app that needs config: set it up front.** Name the
+   keys the code depends on, ask which values to use in production, and
+   set them in one `PUT $BASE/env-vars` call with `"apply": true`.
 
 Prefer fixing the code and redeploying. Roll back when the app is down and
 the cause isn't obvious yet — it restores service while you investigate.
