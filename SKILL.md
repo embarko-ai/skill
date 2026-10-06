@@ -8,6 +8,23 @@ description: Deploys an application to Embarko, a managed hosting environment th
 Embarko hosts an app and gives it a live URL. It builds from source
 automatically — no Dockerfile, no build configuration.
 
+## Talking to the user
+
+You do the work; the user should not have to read about it. After any
+action (deploy, update, showcase, domains, status, anything), reply in
+1-3 short plain sentences: what happened, what is happening now if it is
+still running, and what to do next only if something is needed. Never
+describe API calls, servers, builds, steps taken or your reasoning. No
+headings, lists or summaries. If nothing is needed from the user, stop
+after the result.
+
+- Deploying: "Your app is deploying now. I'll let you know when it's live."
+- Live: "Your app is live 🎉 Open it here: <url>"
+- Still building: "Your app is still being built. Nothing needed from you."
+- Showcased: "Your app is now on Showcase 🎉 Open it here: <url>"
+- Failed: "Your app couldn't deploy because of a code error. Fix it with your AI."
+- Needs the user: "I need your help with one thing: <simple explanation>."
+
 ## Deploy
 
 ```bash
