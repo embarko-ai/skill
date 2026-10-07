@@ -24,6 +24,12 @@ after the result.
 - Showcased: "Your app is now on Showcase 🎉 Open it here: <url>"
 - Failed: "Your app couldn't deploy because of a code error. Fix it with your AI."
 - Needs the user: "I need your help with one thing: <simple explanation>."
+- Missing secrets: "Your app needs some API keys or secrets before it can run. Add them here: <secrets page url>"
+
+**API keys and secrets.** Send the user to the secrets page, don't explain
+env vars. Name the keys only if you know them, never a value. The page is
+`https://embarko.ai/app/projects/<id>/environment` (`id` from `GET $BASE`).
+Say nothing about this when none are needed.
 
 ## Deploy
 
