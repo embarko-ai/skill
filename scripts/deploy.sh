@@ -243,13 +243,31 @@ fi
 
 echo "==> App: ${APP_NAME}  Version: ${VERSION}"
 echo "==> Packaging ${APP_DIR} -> ${TARBALL}"
+# A script cannot look inside folders the way an agent can, so this is a fixed
+# list of names that are never source in any language Railpack builds. Folder
+# names that are sometimes source ("build", "lib", "deps") are deliberately
+# left in; a bigger upload beats a broken build.
+#
+# A Python virtual environment can have any name, but it always holds a
+# pyvenv.cfg marker file, so those folders are found and excluded by marker.
+VENV_EXCLUDES=()
+while IFS= read -r cfg; do
+  rel=${cfg#"$APP_DIR"/}; rel=${rel%/pyvenv.cfg}
+  [[ -n "$rel" && "$rel" != "pyvenv.cfg" ]] && VENV_EXCLUDES+=("--exclude=./$rel")
+done < <(find "$APP_DIR" -mindepth 2 -maxdepth 4 -name pyvenv.cfg -not -path '*/node_modules/*' 2>/dev/null)
+(( ${#VENV_EXCLUDES[@]} > 0 )) && echo "==> Leaving out virtual environment(s): ${VENV_EXCLUDES[*]#--exclude=./}"
+
 tar -czf "$TARBALL" \
+  "${VENV_EXCLUDES[@]}" \
   --exclude='.git' \
-  --exclude='node_modules' \
-  --exclude='.next' \
-  --exclude='dist' \
-  --exclude='venv' \
-  --exclude='__pycache__' \
+  --exclude='.env' --exclude='.env.*' \
+  --exclude='.DS_Store' \
+  --exclude='node_modules' --exclude='.next' --exclude='.nuxt' --exclude='.svelte-kit' \
+  --exclude='dist' --exclude='.cache' --exclude='.parcel-cache' --exclude='.turbo' \
+  --exclude='venv' --exclude='.venv' --exclude='__pycache__' --exclude='.pytest_cache' \
+  --exclude='.mypy_cache' --exclude='.ruff_cache' --exclude='*.pyc' \
+  --exclude='vendor' --exclude='.bundle' \
+  --exclude='target' --exclude='_build' --exclude='.elixir_ls' \
   -C "$APP_DIR" .
 
 # Built as an array, not a string — an empty DEPLOY_TOKEN must OMIT the
