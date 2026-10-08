@@ -20,7 +20,8 @@ For a repo-local install instead of global, drop the `-g` flag.
    export DEPLOY_TOKEN="..."
    ```
    No token yet? Ask Claude to deploy anyway — it can deploy anonymously
-   (a temporary app, no account needed) or get you a token by email with
+   (a temporary app, no account needed; it hands you a link that keeps
+   the app once you sign in) or get you a token by email with
    no dashboard visit at all. See `SKILL.md`'s "Required configuration".
 3. Confirm your app meets Embarko's requirements (see `SKILL.md`):
    - Reads its port from `PORT`

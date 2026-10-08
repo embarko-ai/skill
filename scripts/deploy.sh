@@ -18,7 +18,7 @@
 # Optional environment variables:
 #   DEPLOY_TOKEN   — your company deploy token. If unset, this deploys
 #                    ANONYMOUSLY: a live but temporary app (auto-deleted
-#                    after 24h unless later claimed with a real token —
+#                    after 24h unless kept via the claim link it prints —
 #                    see https://embarko.ai/docs for how to get one,
 #                    including by email with no dashboard visit at all).
 #   EMBARKO_APP_TYPE
@@ -263,7 +263,7 @@ if [[ -n "${DEPLOY_TOKEN:-}" ]]; then
   CURL_AUTH_ARGS=(-H "Authorization: Bearer ${DEPLOY_TOKEN}")
 else
   echo "==> No DEPLOY_TOKEN set — deploying anonymously: a live but TEMPORARY app,"
-  echo "    deleted after 24h unless claimed by redeploying with a real token."
+  echo "    deleted after 24h unless kept. The reply carries a claim link for that."
 fi
 
 # Landing-page attribution, if this deploy came from one. Same array
@@ -337,6 +337,19 @@ if ! echo "$RESPONSE" | grep -q '"success":true'; then
   exit 1
 fi
 
+# The keep-this-app link, present only when this deploy CREATED a temporary
+# app: a one-time code the person uses to claim it by signing in, no
+# redeploy needed. It is in THIS reply and no other — the status replies
+# polled below never carry it — so it is read here and printed last, once
+# the app is live, as the thing to hand to the person.
+CLAIM_URL=$(echo "$RESPONSE" | json_field links.claim)
+print_claim_link() {
+  if [[ -n "$CLAIM_URL" ]]; then
+    echo "==> Keep it (give this link to the user; they open it and sign in):"
+    echo "$CLAIM_URL"
+  fi
+}
+
 # A static site usually publishes while the request waits, so the reply can
 # already say "live": report it and stop, no polling needed.
 if [[ "$(echo "$RESPONSE" | json_field status)" == "live" ]]; then
@@ -345,6 +358,7 @@ if [[ "$(echo "$RESPONSE" | json_field status)" == "live" ]]; then
   [[ -n "$NEXT" ]] && { echo "==> Next:"; echo "$NEXT"; }
   APP_URL=$(echo "$RESPONSE" | json_field links.app)
   [[ -n "$APP_URL" ]] && { echo "==> Live:"; echo "$APP_URL"; }
+  print_claim_link
   exit 0
 fi
 
@@ -387,6 +401,7 @@ for _ in $(seq 1 "$MAX_POLLS"); do
         echo "==> Live:"
         echo "$APP_URL"
       fi
+      print_claim_link
       exit 0
       ;;
     failed|crashed)

@@ -120,7 +120,7 @@ don't send the prose form and take a `400`.
 
 Set `DEPLOY_TOKEN` in the environment and the script uses it. With no
 token the deploy still works: it produces a live but **temporary** app
-(auto-deleted after 24h unless claimed later with a real token).
+(auto-deleted after 24h unless the person keeps it — see below).
 
 The script finds a token in `DEPLOY_TOKEN`, or in `~/.embarko/credentials`
 if a previous run saved one there. If neither exists, it deploys
@@ -132,8 +132,23 @@ An anonymous deploy is real and live, but it is **deleted 24 hours later**
 unless it gets claimed. The script prints the expiry — relay it, and don't
 end the conversation leaving the app to lapse silently.
 
-Claiming needs a token, and you can get one **without the person opening a
-browser at all**. Prefer this route:
+**Lead with the claim link.** The deploy reply for a new temporary app
+carries `links.claim`, and the script prints it as `==> Keep it:`. Show
+that link to the person and ask them to open it and sign in (or sign up —
+the same screen does both). That keeps the app at the same URL with no
+redeploy and no source code; nothing more is needed from you. The link
+proves the app is theirs, so give it only to them, and don't paste it
+anywhere public.
+
+- The link appears **only in that deploy's reply**, never in a status
+  reply. Keep it until the person confirms the app is kept.
+- Once kept, every later deploy of that name needs their token — an
+  anonymous redeploy of a claimed name is a `409`. The claim page's
+  success screen gives them a prompt that hands you one; follow it.
+
+**Fallback: claim by redeploying with a token.** For an app whose link is
+gone (an anonymous *re*deploy of an existing temporary app gets no new
+one), or a person who'd rather not open a browser:
 
 1. Ask for their email address.
 2. Request the token yourself:
@@ -155,7 +170,7 @@ browser at all**. Prefer this route:
    24-hour expiry is cancelled permanently and the URL doesn't change.
 
 The dashboard route (`https://embarko.ai/login` → Tokens → Create) is the
-fallback for someone who would rather click than paste, and the only
+last resort for someone who would rather click than paste, and the only
 option if they can't reach that inbox.
 
 ### Never ask twice
