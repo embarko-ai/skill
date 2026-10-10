@@ -514,7 +514,7 @@ handling yourself.
 
 ```bash
 tar -czf /tmp/<app-name>.tar.gz \
-  --exclude='.git' --exclude='node_modules' --exclude='.next' --exclude='dist' \
+  --exclude='.git' --exclude='node_modules' --exclude='.next' --exclude='.env*' \
   --exclude='venv' --exclude='__pycache__' \
   -C /path/to/app .
 
@@ -529,6 +529,11 @@ curl -X POST "https://ship.embarko.ai/apps" \
 
 - The archive's contents must be at its **root** (no wrapper folder) —
   `tar -tzf` should show `package.json`, not `myapp/package.json`.
+- Never package `.env*`. Whatever is in the archive ends up in the
+  deployed image, secrets included — set them as env vars instead.
+- Don't exclude `dist`. `--exclude='dist'` matches at every depth and
+  strips a prebuilt site's assets, and macOS's tar ignores a `./dist`
+  anchor. Shipping a root `dist` the build will regenerate is harmless.
 - `X-App-Name` is lowercase letters, numbers, and dashes only.
 - `X-App-Type` is optional. Pick it as described in
   [App type](#app-type--optional-but-pass-it-when-you-can), or leave the line out.
