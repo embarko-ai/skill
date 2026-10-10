@@ -140,8 +140,8 @@ If the script isn't present in your environment, see
    "Operating the app" below.
 
 The app name is also the live subdomain — deployed apps are served at
-`https://<app-name>.embarko.app`. Lowercase letters, numbers and
-dashes only. If the person names it in prose ("Testing landing page"),
+`https://<app-name>.embarko.app`. 3–63 lowercase letters, numbers and
+dashes, with no dash at the start or end. If the person names it in prose ("Testing landing page"),
 slugify it yourself (`testing-landing-page`) and tell them what you used —
 don't send the prose form and take a `400`.
 
@@ -529,7 +529,8 @@ curl -X POST "https://ship.embarko.ai/apps" \
 
 - The archive's contents must be at its **root** (no wrapper folder) —
   `tar -tzf` should show `package.json`, not `myapp/package.json`.
-- `X-App-Name` is lowercase letters, numbers, and dashes only.
+- `X-App-Name` is 3–63 lowercase letters, numbers, and dashes, with no
+  dash at the start or end.
 - `X-App-Type` is optional. Pick it as described in
   [App type](#app-type--optional-but-pass-it-when-you-can), or leave the line out.
 - Omit `Authorization` **entirely** for an anonymous deploy — never send
