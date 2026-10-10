@@ -12,7 +12,7 @@ Every non-2xx response from `POST /apps` includes a machine-readable `code` fiel
 | `code` | HTTP status | Meaning | Fix |
 |---|---|---|---|
 | `unauthorized` | 401 | `Authorization` header **present but invalid/revoked**. A **missing** header is never this — that's a valid anonymous deploy | Confirm the token is set correctly and hasn't been rotated/revoked on the dashboard — see `SKILL.md`'s "Required configuration" for both ways to get a token (dashboard or by email) |
-| `invalid_app_name` | 400 | `X-App-Name` missing, or doesn't match `^[a-z0-9-]+$` | Use lowercase letters, numbers, and dashes only |
+| `invalid_app_name`, `app_name_too_short`, `app_name_too_long` | 400 | `X-App-Name` missing, not matching `^[a-z0-9-]+$`, not 3–63 characters, or starting or ending with a dash | Use 3–63 lowercase letters, numbers, and dashes, with no dash at the start or end — the name becomes a DNS label |
 | `app_name_taken` | 409 | This exact app name already belongs to a **different** company | App names are unique platform-wide (they're also the live subdomain) — pick a different name rather than retrying the same one |
 | `app_name_check_failed` | 502 | Embarko couldn't verify app-name availability (an internal service was unreachable) | Transient — retry once; if it keeps happening, this is on Embarko's side, not the app |
 | `invalid_app_version` | 400 | `X-App-Version` doesn't match `^[a-zA-Z0-9._-]+$` | Use only letters, numbers, dots, dashes, underscores — see Step 2 in `SKILL.md` |
