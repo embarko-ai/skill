@@ -243,14 +243,48 @@ fi
 
 echo "==> App: ${APP_NAME}  Version: ${VERSION}"
 echo "==> Packaging ${APP_DIR} -> ${TARBALL}"
-tar -czf "$TARBALL" \
-  --exclude='.git' \
-  --exclude='node_modules' \
-  --exclude='.next' \
-  --exclude='dist' \
-  --exclude='venv' \
-  --exclude='__pycache__' \
-  -C "$APP_DIR" .
+# What to leave out of the upload.
+#
+# .env* is never sent: whatever is in the tarball ends up in the deployed
+# image, so a packaged .env puts its secrets there. Set them as env vars
+# instead (see SKILL.md). Matches at any depth, like the public docs' tar.
+EMBARKO_TAR_EXCLUDES=(
+  --exclude='.git'
+  --exclude='node_modules'
+  --exclude='.next'
+  --exclude='.env*'
+  --exclude='venv'
+  --exclude='__pycache__'
+)
+
+# dist is dropped only at the root, and only when package.json has a build
+# script, i.e. when the platform will regenerate it. Anywhere else it is
+# real content: a prebuilt static site's assets (public/dist/app.js), a
+# Staticfile's "root: dist", a committed server bundle. That rules out an
+# --exclude pattern: a bare 'dist' matches at every depth, and bsdtar (the
+# tar on macOS) also ignores a "./dist" anchor. So the top-level entries
+# are named here instead, with the root dist left off the list.
+EMBARKO_DROP_ROOT_DIST=0
+if [[ -f "$APP_DIR/package.json" ]] && node -e '
+    const pkg = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+    process.exit(typeof (pkg.scripts || {}).build === "string" ? 0 : 1);
+  ' "$APP_DIR/package.json" 2>/dev/null; then
+  EMBARKO_DROP_ROOT_DIST=1
+fi
+shopt -q dotglob && _EMBARKO_DOTGLOB_WAS_SET=1 || _EMBARKO_DOTGLOB_WAS_SET=0
+shopt -q nullglob && _EMBARKO_NULLGLOB_WAS_SET=1 || _EMBARKO_NULLGLOB_WAS_SET=0
+shopt -s dotglob nullglob
+EMBARKO_TAR_ENTRIES=()
+for _e in "$APP_DIR"/*; do
+  _e=$(basename "$_e")
+  if [[ "$_e" == dist ]] && (( EMBARKO_DROP_ROOT_DIST )); then continue; fi
+  EMBARKO_TAR_ENTRIES+=("./$_e")   # "./" keeps member paths as they were
+done
+(( _EMBARKO_DOTGLOB_WAS_SET )) || shopt -u dotglob
+(( _EMBARKO_NULLGLOB_WAS_SET )) || shopt -u nullglob
+(( ${#EMBARKO_TAR_ENTRIES[@]} > 0 )) || EMBARKO_TAR_ENTRIES=(.)
+
+tar -czf "$TARBALL" "${EMBARKO_TAR_EXCLUDES[@]}" -C "$APP_DIR" "${EMBARKO_TAR_ENTRIES[@]}"
 
 # Built as an array, not a string — an empty DEPLOY_TOKEN must OMIT the
 # Authorization header entirely (anonymous deploy), not send an empty
