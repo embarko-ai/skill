@@ -6,7 +6,9 @@
 #
 # All args are optional:
 #   - app-dir defaults to the current directory
-#   - app-name defaults to the "name" field in package.json (sanitized), or the folder name
+#   - app-name defaults to the "name" field in package.json, or the folder name,
+#     slugified to 3-63 lowercase letters, digits and dashes with no dash at
+#     either end (a name passed explicitly must already follow that rule)
 #     — no project needs to exist beforehand, the first deploy of a new
 #     name auto-creates it; the name is unique platform-wide though (it's
 #     also the live subdomain), so a name already taken by another company
@@ -89,17 +91,66 @@ if ! curl -sS --connect-timeout 5 -o /dev/null "$DEPLOY_URL" 2>/tmp/embarko-prob
 fi
 rm -f /tmp/embarko-probe-error
 
-# Infer app name if not passed explicitly
+# The app name is the live subdomain, so it has to be a DNS label — the
+# same rule hostnsoft-api enforces: 3-63 lowercase letters, digits and
+# dashes, not starting or ending with a dash, and no "xn--" prefix.
+
+# Turn free text (a package name, a folder name) into that shape. `tr -cs`
+# squeezes every run of other characters, the trailing newline included,
+# into one dash — it behaves the same in GNU and BSD tr, unlike sed's `\+`,
+# which macOS's sed treats as a literal plus.
+slugify_app_name() {
+  local name
+  name=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-')
+  name=${name#-}
+  name=${name:0:63}
+  name=${name%-}
+  printf '%s' "$name"
+}
+
+# Print what's wrong with a name, or nothing if the API will accept it.
+app_name_problem() {
+  local name=$1
+  if [[ -z "$name" ]]; then
+    echo "it is empty"
+  elif [[ ! "$name" =~ ^[a-z0-9-]+$ ]]; then
+    echo "it may only contain lowercase letters, digits and dashes"
+  elif (( ${#name} < 3 )); then
+    echo "it must be at least 3 characters"
+  elif (( ${#name} > 63 )); then
+    echo "it must be at most 63 characters"
+  elif [[ "$name" == -* || "$name" == *- ]]; then
+    echo "it can't start or end with a dash"
+  elif [[ "$name" == xn--* ]]; then
+    echo "it can't start with xn--"
+  fi
+}
+
+# Infer app name if not passed explicitly. A name passed in is checked as
+# is, never rewritten — silently deploying under a different name than the
+# one asked for would be worse than failing.
 if [[ -n "${2:-}" ]]; then
   APP_NAME="$2"
-elif [[ -f "$APP_DIR/package.json" ]]; then
-  APP_NAME=$(node -p "require('$APP_DIR/package.json').name" 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')
+  APP_NAME_SOURCE="the app-name argument"
 else
-  APP_NAME=$(basename "$(cd -- "$APP_DIR" && pwd)" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-')
+  RAW_NAME=""
+  if [[ -f "$APP_DIR/package.json" ]]; then
+    # The path goes in as an argument, not spliced into the JS: a quote in
+    # it would break the code, and Git Bash only converts paths it can see.
+    RAW_NAME=$(node -p "require(require('path').resolve(process.argv[1])).name || ''" "$APP_DIR/package.json" 2>/dev/null || true)
+    APP_NAME_SOURCE="package.json"
+  fi
+  if [[ -z "$RAW_NAME" ]]; then
+    RAW_NAME=$(basename "$(cd -- "$APP_DIR" && pwd)")
+    APP_NAME_SOURCE="the folder name"
+  fi
+  APP_NAME=$(slugify_app_name "$RAW_NAME")
 fi
 
-if [[ ! "$APP_NAME" =~ ^[a-z0-9-]+$ ]]; then
-  echo "ERROR: could not determine a valid app name (got '$APP_NAME')." >&2
+APP_NAME_PROBLEM=$(app_name_problem "$APP_NAME")
+if [[ -n "$APP_NAME_PROBLEM" ]]; then
+  echo "ERROR: app name '$APP_NAME' (from $APP_NAME_SOURCE) won't be accepted: $APP_NAME_PROBLEM." >&2
+  echo "App names are 3-63 lowercase letters, digits and dashes, and can't start or end with a dash." >&2
   echo "Pass one explicitly: ./deploy.sh <app-dir> <app-name> [version]" >&2
   exit 1
 fi
