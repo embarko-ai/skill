@@ -12,7 +12,7 @@
 #     — no project needs to exist beforehand, the first deploy of a new
 #     name auto-creates it; the name is unique platform-wide though (it's
 #     also the live subdomain), so a name already taken by another company
-#     fails with code "app_name_taken" — see https://embarko.ai/troubleshoot
+#     fails with code "app_name_taken" — see https://embarko.ai/docs/errors
 #   - version defaults to the current git short SHA if in a git repo, else a timestamp
 #
 # Always pass a unique version — never reuse a floating tag such as "latest".
@@ -21,7 +21,7 @@
 #   DEPLOY_TOKEN   — your company deploy token. If unset, this deploys
 #                    ANONYMOUSLY: a live but temporary app (auto-deleted
 #                    after 24h unless kept via the claim link it prints —
-#                    see https://embarko.ai/docs for how to get one,
+#                    see https://embarko.ai/docs/claim for how to get one,
 #                    including by email with no dashboard visit at all).
 #   EMBARKO_APP_TYPE
 #                  — what the app is for, as a short label (max 60 chars):
@@ -175,7 +175,7 @@ if grep -rlF --include='*.js' --include='*.jsx' --include='*.ts' --include='*.ts
   echo "ERROR: found window.storage usage (not supported on Embarko) in:" >&2
   cat /tmp/embarko-storage-check >&2
   echo "Use SQLite (better-sqlite3) instead, writing under DATA_DIR." >&2
-  echo "Details: https://embarko.ai/docs" >&2
+  echo "Details: https://embarko.ai/docs/data" >&2
   rm -f /tmp/embarko-storage-check
   exit 1
 fi
@@ -427,7 +427,7 @@ if ! echo "$RESPONSE" | grep -q '"success":true'; then
     echo "==> Next:"
     echo "$NEXT"
   else
-    echo "    See scripts/troubleshoot.md, or https://embarko.ai/troubleshoot"
+    echo "    Error codes and fixes: https://embarko.ai/docs/errors"
   fi
   exit 1
 fi
