@@ -1,6 +1,6 @@
 ---
 name: embarko-deploy
-description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app, or to showcase / feature / list a deployed app on an Embarko showcase page (public or event).
+description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app, to make a deployed app do something on a timer (daily report, nightly clean-up), or to showcase / feature / list a deployed app on an Embarko showcase page (public or event).
 ---
 
 # Embarko Deploy
@@ -21,6 +21,8 @@ it:
 | What an app needs to run (PORT, 0.0.0.0, DATA_DIR, no Dockerfile) | https://embarko.ai/docs/deploy.md |
 | An error code | https://embarko.ai/docs/errors.md |
 | Keeping a temporary app | https://embarko.ai/docs/claim.md |
+| Running something on a timer | https://embarko.ai/docs/schedules.md |
+| The embarko.json file | https://embarko.ai/docs/embarko-json.md |
 | Secrets, domains, logs, rollback, rename, delete | https://embarko.ai/docs/index.md (contents) |
 | Showcase | https://embarko.ai/docs/showcase.md |
 | Reporting a problem | https://embarko.ai/docs/feedback.md |
@@ -60,6 +62,36 @@ Optional settings:
 The script finds a token in `DEPLOY_TOKEN`, then in `~/.embarko/credentials`.
 Once one is saved there, never ask the person for it again, and never print
 it back.
+
+## Run something on a timer
+
+When the person wants something done at set times ("every Monday at 9",
+"each night"), use schedules, not a cron library or crontab. Needs a
+deploy token.
+
+1. Put the job in a GET route, e.g. `/tasks/weekly-report`. Answer 2xx when
+   it worked. Keep anything it must remember under `DATA_DIR`.
+2. First line of that route: answer 401 unless `Authorization` is
+   `Bearer ` + `process.env.CRON_SECRET`. Embarko creates that variable.
+3. Add `embarko.json` to the app's top folder, in the person's time zone:
+
+   ```json
+   {
+     "$schema": "https://embarko.ai/schema/embarko.json",
+     "schedules": [
+       { "cron": "0 9 * * 1", "path": "/tasks/weekly-report", "timezone": "Asia/Kolkata" }
+     ]
+   }
+   ```
+
+4. Deploy as usual. Once live, the script runs each schedule once and
+   prints `ok` or the error. Fix and redeploy until every line says `ok`.
+
+The file is the app's full list: edit it and redeploy to change times,
+`"schedules": []` removes all. Never put secrets in it; use env vars. If
+the script prints warnings, fix them before telling the person it's done.
+Details: https://embarko.ai/docs/schedules.md and
+https://embarko.ai/docs/embarko-json.md
 
 ## No script, or no network
 

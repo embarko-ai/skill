@@ -445,6 +445,64 @@ print_claim_link() {
   fi
 }
 
+# Runs every schedule once, now that the app is live, and prints each
+# outcome — the check that a schedule actually works. Only when the app's
+# embarko.json lists schedules (the reply then has links.runSchedules). They
+# are applied as the app goes live, so a first "no_schedules" is retried.
+RUN_SCHEDULES_URL=$(echo "$RESPONSE" | json_field links.runSchedules)
+run_schedules_once() {
+  [[ -z "$RUN_SCHEDULES_URL" ]] && return 0
+  local base="${DEPLOY_URL%/apps}" reply="" runs=""
+  for _ in 1 2 3 4 5; do
+    reply=$(curl -sS -X POST ${CURL_AUTH_ARGS[@]+"${CURL_AUTH_ARGS[@]}"} "$RUN_SCHEDULES_URL")
+    [[ "$(echo "$reply" | json_field code)" != "no_schedules" ]] && break
+    sleep 3
+  done
+  runs=$(echo "$reply" | node -e '
+    const r = JSON.parse(require("fs").readFileSync(0));
+    for (const x of r.runs || []) console.log(`${x.path}\t${x.statusUrl || ""}`);
+  ' 2>/dev/null || true)
+  if [[ -z "$runs" ]]; then
+    echo "==> Could not start the schedules' test run:"
+    echo "$reply"
+    return 1
+  fi
+  local failed=0 path url run outcome
+  echo "==> Running each schedule once to check it works..."
+  while IFS=$'\t' read -r path url; do
+    if [[ -z "$url" ]]; then echo "    ${path}: already running, not started again"; continue; fi
+    for _ in $(seq 1 70); do
+      run=$(curl -sS ${CURL_AUTH_ARGS[@]+"${CURL_AUTH_ARGS[@]}"} "${base}${url}")
+      [[ "$(echo "$run" | json_field terminal)" == "true" ]] && break
+      sleep 5
+    done
+    outcome=$(echo "$run" | json_field outcome)
+    if [[ "$outcome" == "ok" ]]; then
+      echo "    ${path}: ok ($(echo "$run" | json_field httpStatus)) $(echo "$run" | json_field responseExcerpt | head -c 200)"
+    else
+      failed=1
+      echo "    ${path}: ${outcome:-no result} — $(echo "$run" | json_field error) $(echo "$run" | json_field responseExcerpt | head -c 200)"
+    fi
+  done <<< "$runs"
+  if [[ "$failed" == "1" ]]; then
+    echo "==> The app is live, but a schedule's test run failed. Fix that route (it must answer 2xx and accept Authorization: Bearer \$CRON_SECRET), then deploy again."
+    return 1
+  fi
+}
+
+# Warnings the deploy reply carried (embarko.json problems, in-process
+# timers that stop when the app sleeps...). Printed after "Live" so they
+# aren't lost above the polling.
+WARNINGS=$(echo "$RESPONSE" | node -e '
+  try { for (const w of JSON.parse(require("fs").readFileSync(0)).warnings || []) console.log(`- [${w.code}] ${w.detail}`); } catch {}
+' 2>/dev/null || true)
+print_warning() {
+  if [[ -n "$WARNINGS" ]]; then
+    echo "==> Warnings (fix before telling the user it's done):"
+    echo "$WARNINGS"
+  fi
+}
+
 # A static site usually publishes while the request waits, so the reply can
 # already say "live": report it and stop, no polling needed.
 if [[ "$(echo "$RESPONSE" | json_field status)" == "live" ]]; then
@@ -454,6 +512,7 @@ if [[ "$(echo "$RESPONSE" | json_field status)" == "live" ]]; then
   APP_URL=$(echo "$RESPONSE" | json_field links.app)
   [[ -n "$APP_URL" ]] && { echo "==> Live:"; echo "$APP_URL"; }
   print_claim_link
+  print_warning
   exit 0
 fi
 
@@ -497,6 +556,8 @@ for _ in $(seq 1 "$MAX_POLLS"); do
         echo "$APP_URL"
       fi
       print_claim_link
+      print_warning
+      run_schedules_once || exit 1
       exit 0
       ;;
     failed|crashed)
