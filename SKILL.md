@@ -404,6 +404,8 @@ SQLite is the only supported embedded database. PGlite (`@electric-sql/pglite`) 
 
 Keep the whole database under `DATA_DIR`, including the `-wal` and `-shm` files SQLite creates alongside it — those are part of the database, and a database split across `DATA_DIR` and somewhere else will lose data.
 
+Embarko backs up every SQLite database under `DATA_DIR` continuously, and the backup tool keeps two small bookkeeping tables inside the database: `_litestream_seq` and `_litestream_lock`. Leave them alone, and expect them to be there. Any ORM, migration tool, or custom startup step that compares the live database against the app's schema and changes the database to match will see them as unknown tables and either refuse to start or try to drop them. Do not work around that with a "force" or "accept data loss" flag. In production apply committed migration files, which only run the changes you wrote and never inspect other tables, or declare the two tables in the schema so the tool treats them as yours. Apps that create their own tables with `CREATE TABLE IF NOT EXISTS` need nothing.
+
 ## Storage requirements
 
 Do not use `window.storage` — it's an API specific to Claude.ai's Artifacts sandbox and does not exist outside it. The script refuses to upload an app that calls it, and the platform rejects it too (HTTP 422, before any build is attempted) with the offending file(s) named. If an app was generated or previewed inside an Artifacts-style tool and uses this API, replace it with SQLite (`better-sqlite3`, see above), writing to a path under `DATA_DIR` so it persists across redeploys.
