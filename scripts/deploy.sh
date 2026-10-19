@@ -491,7 +491,7 @@ run_schedules_once() {
 }
 
 # Warnings the deploy reply carried (embarko.json problems, in-process
-# timers that stop when the app sleeps...). Printed after "Live" so they
+# timers...). Printed after "Live" so they
 # aren't lost above the polling.
 WARNINGS=$(echo "$RESPONSE" | node -e '
   try { for (const w of JSON.parse(require("fs").readFileSync(0)).warnings || []) console.log(`- [${w.code}] ${w.detail}`); } catch {}
