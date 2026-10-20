@@ -298,15 +298,34 @@ echo "==> Packaging ${APP_DIR} -> ${TARBALL}"
 #
 # .env* is never sent: whatever is in the tarball ends up in the deployed
 # image, so a packaged .env puts its secrets there. Set them as env vars
-# instead (see SKILL.md). Matches at any depth, like the public docs' tar.
+# instead. Matches at any depth, like the public docs' tar.
+#
+# A script cannot look inside folders the way an agent can, so the rest is a
+# fixed list of names that are never source in any language Railpack builds.
+# Folder names that are sometimes source ("build", "lib", "deps") are
+# deliberately left in; a bigger upload beats a broken build. dist is handled
+# separately below.
 EMBARKO_TAR_EXCLUDES=(
   --exclude='.git'
-  --exclude='node_modules'
-  --exclude='.next'
   --exclude='.env*'
-  --exclude='venv'
-  --exclude='__pycache__'
+  --exclude='.DS_Store'
+  --exclude='node_modules' --exclude='.next' --exclude='.nuxt' --exclude='.svelte-kit'
+  --exclude='.cache' --exclude='.parcel-cache' --exclude='.turbo'
+  --exclude='venv' --exclude='.venv' --exclude='__pycache__' --exclude='.pytest_cache'
+  --exclude='.mypy_cache' --exclude='.ruff_cache' --exclude='*.pyc'
+  --exclude='vendor' --exclude='.bundle'
+  --exclude='target' --exclude='_build' --exclude='.elixir_ls'
 )
+
+# A Python virtual environment can have any name, but it always holds a
+# pyvenv.cfg marker file, so those folders are found and excluded by marker.
+VENV_EXCLUDES=()
+while IFS= read -r cfg; do
+  rel=${cfg#"$APP_DIR"/}; rel=${rel%/pyvenv.cfg}
+  [[ -n "$rel" && "$rel" != "pyvenv.cfg" ]] && VENV_EXCLUDES+=("--exclude=./$rel")
+done < <(find "$APP_DIR" -mindepth 2 -maxdepth 4 -name pyvenv.cfg -not -path '*/node_modules/*' 2>/dev/null)
+(( ${#VENV_EXCLUDES[@]} > 0 )) && echo "==> Leaving out virtual environment(s): ${VENV_EXCLUDES[*]#--exclude=./}"
+EMBARKO_TAR_EXCLUDES+=("${VENV_EXCLUDES[@]}")
 
 # dist is dropped only at the root, and only when package.json has a build
 # script, i.e. when the platform will regenerate it. Anywhere else it is
