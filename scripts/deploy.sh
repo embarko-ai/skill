@@ -6,11 +6,13 @@
 #
 # All args are optional:
 #   - app-dir defaults to the current directory
-#   - app-name defaults to the "name" field in package.json (sanitized), or the folder name
+#   - app-name defaults to the "name" field in package.json, or the folder name,
+#     slugified to 3-63 lowercase letters, digits and dashes with no dash at
+#     either end (a name passed explicitly must already follow that rule)
 #     — no project needs to exist beforehand, the first deploy of a new
 #     name auto-creates it; the name is unique platform-wide though (it's
 #     also the live subdomain), so a name already taken by another company
-#     fails with code "app_name_taken" — see https://embarko.ai/troubleshoot
+#     fails with code "app_name_taken" — see https://embarko.ai/docs/errors
 #   - version defaults to the current git short SHA if in a git repo, else a timestamp
 #
 # Always pass a unique version — never reuse a floating tag such as "latest".
@@ -18,8 +20,8 @@
 # Optional environment variables:
 #   DEPLOY_TOKEN   — your company deploy token. If unset, this deploys
 #                    ANONYMOUSLY: a live but temporary app (auto-deleted
-#                    after 24h unless later claimed with a real token —
-#                    see https://embarko.ai/docs for how to get one,
+#                    after 24h unless kept via the claim link it prints —
+#                    see https://embarko.ai/docs/claim for how to get one,
 #                    including by email with no dashboard visit at all).
 #   EMBARKO_APP_TYPE
 #                  — what the app is for, as a short label (max 60 chars):
@@ -89,17 +91,66 @@ if ! curl -sS --connect-timeout 5 -o /dev/null "$DEPLOY_URL" 2>/tmp/embarko-prob
 fi
 rm -f /tmp/embarko-probe-error
 
-# Infer app name if not passed explicitly
+# The app name is the live subdomain, so it has to be a DNS label — the
+# same rule hostnsoft-api enforces: 3-63 lowercase letters, digits and
+# dashes, not starting or ending with a dash, and no "xn--" prefix.
+
+# Turn free text (a package name, a folder name) into that shape. `tr -cs`
+# squeezes every run of other characters, the trailing newline included,
+# into one dash — it behaves the same in GNU and BSD tr, unlike sed's `\+`,
+# which macOS's sed treats as a literal plus.
+slugify_app_name() {
+  local name
+  name=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-')
+  name=${name#-}
+  name=${name:0:63}
+  name=${name%-}
+  printf '%s' "$name"
+}
+
+# Print what's wrong with a name, or nothing if the API will accept it.
+app_name_problem() {
+  local name=$1
+  if [[ -z "$name" ]]; then
+    echo "it is empty"
+  elif [[ ! "$name" =~ ^[a-z0-9-]+$ ]]; then
+    echo "it may only contain lowercase letters, digits and dashes"
+  elif (( ${#name} < 3 )); then
+    echo "it must be at least 3 characters"
+  elif (( ${#name} > 63 )); then
+    echo "it must be at most 63 characters"
+  elif [[ "$name" == -* || "$name" == *- ]]; then
+    echo "it can't start or end with a dash"
+  elif [[ "$name" == xn--* ]]; then
+    echo "it can't start with xn--"
+  fi
+}
+
+# Infer app name if not passed explicitly. A name passed in is checked as
+# is, never rewritten — silently deploying under a different name than the
+# one asked for would be worse than failing.
 if [[ -n "${2:-}" ]]; then
   APP_NAME="$2"
-elif [[ -f "$APP_DIR/package.json" ]]; then
-  APP_NAME=$(node -p "require('$APP_DIR/package.json').name" 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')
+  APP_NAME_SOURCE="the app-name argument"
 else
-  APP_NAME=$(basename "$(cd -- "$APP_DIR" && pwd)" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-')
+  RAW_NAME=""
+  if [[ -f "$APP_DIR/package.json" ]]; then
+    # The path goes in as an argument, not spliced into the JS: a quote in
+    # it would break the code, and Git Bash only converts paths it can see.
+    RAW_NAME=$(node -p "require(require('path').resolve(process.argv[1])).name || ''" "$APP_DIR/package.json" 2>/dev/null || true)
+    APP_NAME_SOURCE="package.json"
+  fi
+  if [[ -z "$RAW_NAME" ]]; then
+    RAW_NAME=$(basename "$(cd -- "$APP_DIR" && pwd)")
+    APP_NAME_SOURCE="the folder name"
+  fi
+  APP_NAME=$(slugify_app_name "$RAW_NAME")
 fi
 
-if [[ ! "$APP_NAME" =~ ^[a-z0-9-]+$ ]]; then
-  echo "ERROR: could not determine a valid app name (got '$APP_NAME')." >&2
+APP_NAME_PROBLEM=$(app_name_problem "$APP_NAME")
+if [[ -n "$APP_NAME_PROBLEM" ]]; then
+  echo "ERROR: app name '$APP_NAME' (from $APP_NAME_SOURCE) won't be accepted: $APP_NAME_PROBLEM." >&2
+  echo "App names are 3-63 lowercase letters, digits and dashes, and can't start or end with a dash." >&2
   echo "Pass one explicitly: ./deploy.sh <app-dir> <app-name> [version]" >&2
   exit 1
 fi
@@ -124,7 +175,7 @@ if grep -rlF --include='*.js' --include='*.jsx' --include='*.ts' --include='*.ts
   echo "ERROR: found window.storage usage (not supported on Embarko) in:" >&2
   cat /tmp/embarko-storage-check >&2
   echo "Use SQLite (better-sqlite3) instead, writing under DATA_DIR." >&2
-  echo "Details: https://embarko.ai/docs" >&2
+  echo "Details: https://embarko.ai/docs/data" >&2
   rm -f /tmp/embarko-storage-check
   exit 1
 fi
@@ -243,11 +294,29 @@ fi
 
 echo "==> App: ${APP_NAME}  Version: ${VERSION}"
 echo "==> Packaging ${APP_DIR} -> ${TARBALL}"
-# A script cannot look inside folders the way an agent can, so this is a fixed
-# list of names that are never source in any language Railpack builds. Folder
-# names that are sometimes source ("build", "lib", "deps") are deliberately
-# left in; a bigger upload beats a broken build.
+# What to leave out of the upload.
 #
+# .env* is never sent: whatever is in the tarball ends up in the deployed
+# image, so a packaged .env puts its secrets there. Set them as env vars
+# instead. Matches at any depth, like the public docs' tar.
+#
+# A script cannot look inside folders the way an agent can, so the rest is a
+# fixed list of names that are never source in any language Railpack builds.
+# Folder names that are sometimes source ("build", "lib", "deps") are
+# deliberately left in; a bigger upload beats a broken build. dist is handled
+# separately below.
+EMBARKO_TAR_EXCLUDES=(
+  --exclude='.git'
+  --exclude='.env*'
+  --exclude='.DS_Store'
+  --exclude='node_modules' --exclude='.next' --exclude='.nuxt' --exclude='.svelte-kit'
+  --exclude='.cache' --exclude='.parcel-cache' --exclude='.turbo'
+  --exclude='venv' --exclude='.venv' --exclude='__pycache__' --exclude='.pytest_cache'
+  --exclude='.mypy_cache' --exclude='.ruff_cache' --exclude='*.pyc'
+  --exclude='vendor' --exclude='.bundle'
+  --exclude='target' --exclude='_build' --exclude='.elixir_ls'
+)
+
 # A Python virtual environment can have any name, but it always holds a
 # pyvenv.cfg marker file, so those folders are found and excluded by marker.
 VENV_EXCLUDES=()
@@ -256,19 +325,36 @@ while IFS= read -r cfg; do
   [[ -n "$rel" && "$rel" != "pyvenv.cfg" ]] && VENV_EXCLUDES+=("--exclude=./$rel")
 done < <(find "$APP_DIR" -mindepth 2 -maxdepth 4 -name pyvenv.cfg -not -path '*/node_modules/*' 2>/dev/null)
 (( ${#VENV_EXCLUDES[@]} > 0 )) && echo "==> Leaving out virtual environment(s): ${VENV_EXCLUDES[*]#--exclude=./}"
+EMBARKO_TAR_EXCLUDES+=("${VENV_EXCLUDES[@]}")
 
-tar -czf "$TARBALL" \
-  "${VENV_EXCLUDES[@]}" \
-  --exclude='.git' \
-  --exclude='.env' --exclude='.env.*' \
-  --exclude='.DS_Store' \
-  --exclude='node_modules' --exclude='.next' --exclude='.nuxt' --exclude='.svelte-kit' \
-  --exclude='dist' --exclude='.cache' --exclude='.parcel-cache' --exclude='.turbo' \
-  --exclude='venv' --exclude='.venv' --exclude='__pycache__' --exclude='.pytest_cache' \
-  --exclude='.mypy_cache' --exclude='.ruff_cache' --exclude='*.pyc' \
-  --exclude='vendor' --exclude='.bundle' \
-  --exclude='target' --exclude='_build' --exclude='.elixir_ls' \
-  -C "$APP_DIR" .
+# dist is dropped only at the root, and only when package.json has a build
+# script, i.e. when the platform will regenerate it. Anywhere else it is
+# real content: a prebuilt static site's assets (public/dist/app.js), a
+# Staticfile's "root: dist", a committed server bundle. That rules out an
+# --exclude pattern: a bare 'dist' matches at every depth, and bsdtar (the
+# tar on macOS) also ignores a "./dist" anchor. So the top-level entries
+# are named here instead, with the root dist left off the list.
+EMBARKO_DROP_ROOT_DIST=0
+if [[ -f "$APP_DIR/package.json" ]] && node -e '
+    const pkg = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+    process.exit(typeof (pkg.scripts || {}).build === "string" ? 0 : 1);
+  ' "$APP_DIR/package.json" 2>/dev/null; then
+  EMBARKO_DROP_ROOT_DIST=1
+fi
+shopt -q dotglob && _EMBARKO_DOTGLOB_WAS_SET=1 || _EMBARKO_DOTGLOB_WAS_SET=0
+shopt -q nullglob && _EMBARKO_NULLGLOB_WAS_SET=1 || _EMBARKO_NULLGLOB_WAS_SET=0
+shopt -s dotglob nullglob
+EMBARKO_TAR_ENTRIES=()
+for _e in "$APP_DIR"/*; do
+  _e=$(basename "$_e")
+  if [[ "$_e" == dist ]] && (( EMBARKO_DROP_ROOT_DIST )); then continue; fi
+  EMBARKO_TAR_ENTRIES+=("./$_e")   # "./" keeps member paths as they were
+done
+(( _EMBARKO_DOTGLOB_WAS_SET )) || shopt -u dotglob
+(( _EMBARKO_NULLGLOB_WAS_SET )) || shopt -u nullglob
+(( ${#EMBARKO_TAR_ENTRIES[@]} > 0 )) || EMBARKO_TAR_ENTRIES=(.)
+
+tar -czf "$TARBALL" "${EMBARKO_TAR_EXCLUDES[@]}" -C "$APP_DIR" "${EMBARKO_TAR_ENTRIES[@]}"
 
 # Built as an array, not a string — an empty DEPLOY_TOKEN must OMIT the
 # Authorization header entirely (anonymous deploy), not send an empty
@@ -291,7 +377,7 @@ if [[ -n "${DEPLOY_TOKEN:-}" ]]; then
   CURL_AUTH_ARGS=(-H "Authorization: Bearer ${DEPLOY_TOKEN}")
 else
   echo "==> No DEPLOY_TOKEN set — deploying anonymously: a live but TEMPORARY app,"
-  echo "    deleted after 24h unless claimed by redeploying with a real token."
+  echo "    deleted after 24h unless kept. The reply carries a claim link for that."
 fi
 
 # Landing-page attribution, if this deploy came from one. Same array
@@ -360,10 +446,81 @@ if ! echo "$RESPONSE" | grep -q '"success":true'; then
     echo "==> Next:"
     echo "$NEXT"
   else
-    echo "    See scripts/troubleshoot.md, or https://embarko.ai/troubleshoot"
+    echo "    Error codes and fixes: https://embarko.ai/docs/errors"
   fi
   exit 1
 fi
+
+# The keep-this-app link, present only when this deploy CREATED a temporary
+# app: a one-time code the person uses to claim it by signing in, no
+# redeploy needed. It is in THIS reply and no other — the status replies
+# polled below never carry it — so it is read here and printed last, once
+# the app is live, as the thing to hand to the person.
+CLAIM_URL=$(echo "$RESPONSE" | json_field links.claim)
+print_claim_link() {
+  if [[ -n "$CLAIM_URL" ]]; then
+    echo "==> Keep it (give this link to the user; they open it and sign in):"
+    echo "$CLAIM_URL"
+  fi
+}
+
+# Runs every schedule once, now that the app is live, and prints each
+# outcome — the check that a schedule actually works. Only when the app's
+# embarko.json lists schedules (the reply then has links.runSchedules). They
+# are applied as the app goes live, so a first "no_schedules" is retried.
+RUN_SCHEDULES_URL=$(echo "$RESPONSE" | json_field links.runSchedules)
+run_schedules_once() {
+  [[ -z "$RUN_SCHEDULES_URL" ]] && return 0
+  local base="${DEPLOY_URL%/apps}" reply="" runs=""
+  for _ in 1 2 3 4 5; do
+    reply=$(curl -sS -X POST ${CURL_AUTH_ARGS[@]+"${CURL_AUTH_ARGS[@]}"} "$RUN_SCHEDULES_URL")
+    [[ "$(echo "$reply" | json_field code)" != "no_schedules" ]] && break
+    sleep 3
+  done
+  runs=$(echo "$reply" | node -e '
+    const r = JSON.parse(require("fs").readFileSync(0));
+    for (const x of r.runs || []) console.log(`${x.path}\t${x.statusUrl || ""}`);
+  ' 2>/dev/null || true)
+  if [[ -z "$runs" ]]; then
+    echo "==> Could not start the schedules' test run:"
+    echo "$reply"
+    return 1
+  fi
+  local failed=0 path url run outcome
+  echo "==> Running each schedule once to check it works..."
+  while IFS=$'\t' read -r path url; do
+    if [[ -z "$url" ]]; then echo "    ${path}: already running, not started again"; continue; fi
+    for _ in $(seq 1 70); do
+      run=$(curl -sS ${CURL_AUTH_ARGS[@]+"${CURL_AUTH_ARGS[@]}"} "${base}${url}")
+      [[ "$(echo "$run" | json_field terminal)" == "true" ]] && break
+      sleep 5
+    done
+    outcome=$(echo "$run" | json_field outcome)
+    if [[ "$outcome" == "ok" ]]; then
+      echo "    ${path}: ok ($(echo "$run" | json_field httpStatus)) $(echo "$run" | json_field responseExcerpt | head -c 200)"
+    else
+      failed=1
+      echo "    ${path}: ${outcome:-no result} — $(echo "$run" | json_field error) $(echo "$run" | json_field responseExcerpt | head -c 200)"
+    fi
+  done <<< "$runs"
+  if [[ "$failed" == "1" ]]; then
+    echo "==> The app is live, but a schedule's test run failed. Fix that route (it must answer 2xx and accept Authorization: Bearer \$CRON_SECRET), then deploy again."
+    return 1
+  fi
+}
+
+# Warnings the deploy reply carried (embarko.json problems, in-process
+# timers...). Printed after "Live" so they
+# aren't lost above the polling.
+WARNINGS=$(echo "$RESPONSE" | node -e '
+  try { for (const w of JSON.parse(require("fs").readFileSync(0)).warnings || []) console.log(`- [${w.code}] ${w.detail}`); } catch {}
+' 2>/dev/null || true)
+print_warning() {
+  if [[ -n "$WARNINGS" ]]; then
+    echo "==> Warnings (fix before telling the user it's done):"
+    echo "$WARNINGS"
+  fi
+}
 
 # A static site usually publishes while the request waits, so the reply can
 # already say "live": report it and stop, no polling needed.
@@ -373,6 +530,8 @@ if [[ "$(echo "$RESPONSE" | json_field status)" == "live" ]]; then
   [[ -n "$NEXT" ]] && { echo "==> Next:"; echo "$NEXT"; }
   APP_URL=$(echo "$RESPONSE" | json_field links.app)
   [[ -n "$APP_URL" ]] && { echo "==> Live:"; echo "$APP_URL"; }
+  print_claim_link
+  print_warning
   exit 0
 fi
 
@@ -415,6 +574,9 @@ for _ in $(seq 1 "$MAX_POLLS"); do
         echo "==> Live:"
         echo "$APP_URL"
       fi
+      print_claim_link
+      print_warning
+      run_schedules_once || exit 1
       exit 0
       ;;
     failed|crashed)

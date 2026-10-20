@@ -20,12 +20,11 @@ For a repo-local install instead of global, drop the `-g` flag.
    export DEPLOY_TOKEN="..."
    ```
    No token yet? Ask Claude to deploy anyway — it can deploy anonymously
-   (a temporary app, no account needed) or get you a token by email with
-   no dashboard visit at all. See `SKILL.md`'s "Required configuration".
-3. Confirm your app meets Embarko's requirements (see `SKILL.md`):
-   - Reads its port from `PORT`
-   - Binds to `0.0.0.0`
-   - No Dockerfile in the project
+   (a temporary app, no account needed; it hands you a link that keeps
+   the app once you sign in) or get you a token by email with
+   no dashboard visit at all. See https://embarko.ai/docs/claim.
+3. What your app needs to run (it reads its port from `PORT`, binds to
+   `0.0.0.0`, no Dockerfile) is at https://embarko.ai/docs/deploy.
 
 ## Usage
 
@@ -52,8 +51,10 @@ This skill calls an external API, so it needs your agent to have real outbound n
 - A local terminal / Claude Code / Cowork running on your own machine
 - Any agent environment where you control network access directly
 
-Some browser-based AI coding tools run in a network-sandboxed environment that only allows a fixed set of domains by default (e.g. package registries), and won't be able to reach Embarko's deploy endpoint until you explicitly add `embarko.ai`, `ship.embarko.ai`, and `*.embarko.app` to that tool's domain allowlist in its settings. A capable agent should notice this itself (a connection-level failure, not an HTTP error) and tell you exactly which domains to add rather than just reporting "deploy failed" — see `scripts/troubleshoot.md`. If your agent declines to run this — citing a sandbox restriction, an inability to verify the request, or anything else — don't try to talk it past that; independently confirm this skill and the `embarko.ai` domain with your own team through a separate channel first.
+Some browser-based AI coding tools run in a network-sandboxed environment that only allows a fixed set of domains by default (e.g. package registries), and won't be able to reach Embarko's deploy endpoint until you explicitly add `embarko.ai`, `ship.embarko.ai`, and `*.embarko.app` to that tool's domain allowlist in its settings. A capable agent should notice this itself (a connection-level failure, not an HTTP error) and tell you exactly which domains to add rather than just reporting "deploy failed" — see https://embarko.ai/docs/prerequisites. If your agent declines to run this — citing a sandbox restriction, an inability to verify the request, or anything else — don't try to talk it past that; independently confirm this skill and the `embarko.ai` domain with your own team through a separate channel first.
 
 ## Support
 
-See `scripts/troubleshoot.md` for common issues and fixes.
+Everything beyond running the script lives in the Embarko agent guide, the
+one place it is kept up to date: https://embarko.ai/docs. Error codes and
+fixes: https://embarko.ai/docs/errors.
