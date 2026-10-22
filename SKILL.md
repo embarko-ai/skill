@@ -52,7 +52,9 @@ it with your own `tar`/`curl` calls.
 - Deploying again is the same command. After the first deploy the script
   writes the app's id to `embarko.json` as `"appId"`, so every later deploy
   reaches the same app even if its name was changed in the dashboard. Keep
-  the file and commit it with the app.
+  the file and commit it with the app. When copying an app's code to start
+  a new app, remove `"appId"` first: under a new name the deploy is refused
+  with `app_id_mismatch` rather than overwriting the original.
 - **`==> Changed outside this deploy:`** means the person changed something
   in the dashboard, e.g. renamed the app. The deploy still reached the
   right app; tell the person its current name and URL.
