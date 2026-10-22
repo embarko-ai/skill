@@ -49,7 +49,15 @@ it with your own `tar`/`curl` calls.
   without a token that is keeping the app; on a failure, how to fix it.
 - **`==> Keep it:`** is the claim link for a temporary app. Give it to the
   person: opening it and signing in keeps the app. It is printed once only.
-- Deploying again is the same command; the script reuses the app name.
+- Deploying again is the same command. After the first deploy the script
+  writes the app's id to `embarko.json` as `"appId"`, so every later deploy
+  reaches the same app even if its name was changed in the dashboard. Keep
+  the file and commit it with the app. When copying an app's code to start
+  a new app, remove `"appId"` first: under a new name the deploy is refused
+  with `app_id_mismatch` rather than overwriting the original.
+- **`==> Changed outside this deploy:`** means the person changed something
+  in the dashboard, e.g. renamed the app. The deploy still reached the
+  right app; tell the person its current name and URL.
 
 Optional settings:
 

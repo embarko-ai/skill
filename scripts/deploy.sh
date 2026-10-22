@@ -451,6 +451,40 @@ if ! echo "$RESPONSE" | grep -q '"success":true'; then
   exit 1
 fi
 
+# The app's stable id (app.id), kept in embarko.json so the next deploy
+# reaches this same app even after it is renamed in the dashboard — the
+# deploy service reads it from the uploaded file. Written as soon as the
+# app exists, before the build finishes, since a failed build still made it.
+# Other keys in the file are kept as they are.
+APP_ID=$(echo "$RESPONSE" | json_field app.id)
+if [[ -n "$APP_ID" ]]; then
+  SAVED=$(node -e '
+    const fs = require("fs"), file = process.argv[1], id = process.argv[2];
+    let config = {};
+    if (fs.existsSync(file)) config = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (config.appId === id) process.exit(0);
+    const previous = config.appId;
+    config.appId = id;
+    fs.writeFileSync(file, JSON.stringify(config, null, 2) + "\n");
+    console.log(previous ? "updated" : "saved");
+  ' "$APP_DIR/embarko.json" "$APP_ID" 2>/dev/null || echo "failed")
+  case "$SAVED" in
+    saved|updated) echo "==> Wrote appId to embarko.json (${SAVED}): commit it with the app, so every later deploy reaches this app." ;;
+    failed) echo "==> Could not write appId to embarko.json. Add \"appId\": \"${APP_ID}\" to it by hand." ;;
+  esac
+fi
+
+# Things changed outside this deploy (e.g. the app was renamed in the
+# dashboard): the deploy still reached the right app, but the agent should
+# know what it is called now.
+NOTICES=$(echo "$RESPONSE" | node -e '
+  try { for (const n of JSON.parse(require("fs").readFileSync(0)).notices || []) console.log(`- [${n.code}] ${n.detail}`); } catch {}
+' 2>/dev/null || true)
+if [[ -n "$NOTICES" ]]; then
+  echo "==> Changed outside this deploy:"
+  echo "$NOTICES"
+fi
+
 # The keep-this-app link, present only when this deploy CREATED a temporary
 # app: a one-time code the person uses to claim it by signing in, no
 # redeploy needed. It is in THIS reply and no other — the status replies
