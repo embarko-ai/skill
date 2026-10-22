@@ -23,6 +23,7 @@ it:
 | Keeping a temporary app | https://embarko.ai/docs/claim.md |
 | Running something on a timer | https://embarko.ai/docs/schedules.md |
 | The embarko.json file | https://embarko.ai/docs/embarko-json.md |
+| Making the app private (optional) (only the team can open it) | https://embarko.ai/docs/lock.md |
 | Secrets, domains, logs, rollback, rename, delete | https://embarko.ai/docs/index.md (contents) |
 | Showcase | https://embarko.ai/docs/showcase.md |
 | Reporting a problem | https://embarko.ai/docs/feedback.md |
