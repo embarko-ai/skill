@@ -101,6 +101,57 @@ the script prints warnings, fix them before telling the person it's done.
 Details: https://embarko.ai/docs/schedules.md and
 https://embarko.ai/docs/embarko-json.md
 
+## Connect another service
+
+When the app's users need Slack, Google Sheets, a CRM or similar, don't
+build and host that glue. Turn Integrations on and the app gets an
+embedded integrations panel (viaSocket's prebuilt embed) where its users
+connect tools and build their own flows. Needs a deploy token, and the
+app must be claimed. Static sites can't use it.
+
+**1. Turn it on.** Safe to repeat; a second call answers `alreadyEnabled: true`.
+
+```bash
+curl -sS -X POST "https://ship.embarko.ai/api/apps/$APP/integrations" \
+  --oauth2-bearer "$DEPLOY_TOKEN" \
+  -H 'Content-Type: application/json' -d '{"apply": true}'
+```
+
+This sets three env vars on the app: `INTEGRATIONS_ORG_ID`,
+`INTEGRATIONS_PROJECT_ID`, `INTEGRATIONS_SECRET`.
+`"apply": true` pushes them to the running app; without it they arrive
+on the next deploy. They live on Embarko, not in the local `.env`: to run
+the app locally, the person copies them from the app's App setup tab.
+
+**2. Build the panel** by following viaSocket's skill. Download
+https://flow.viasocket.com/documentation/skill.md to
+`.claude/skills/viasocket-integrations/SKILL.md` inside the app folder
+and follow it; keep it there for next time, and download it again if a
+call in it fails. Use its prebuilt embed UI route. Add `viasocket-apps`
+to the app's dependencies; Embarko's build installs it.
+
+Two things differ on Embarko from what that skill says:
+
+- **Don't ask the person for the org ID, project ID or secret.** Embarko
+  already set them. Where viaSocket's skill reads `VIASOCKET_ORG_ID`,
+  `VIASOCKET_PROJECT_ID` and `VIASOCKET_EMBED_SECRET`, use
+  `INTEGRATIONS_ORG_ID`, `INTEGRATIONS_PROJECT_ID` and
+  `INTEGRATIONS_SECRET` instead, in that order. Never hardcode them;
+  never send the secret to the browser. To the person, say "Integrations",
+  not viaSocket.
+- **Its check script may not run in your sandbox.** If running downloaded
+  code is blocked, skip the proof step and say so in your report.
+
+Then decide who supplies each value (the app's code, the user in a
+picker, or you per run) and who picks the action, and report each line
+of the viaSocket skill's "Finished when" list.
+
+`409 integrations_disabled_for_workspace`: the workspace has Integrations
+off. Embarko has already emailed the workspace Owners about this app with
+a link to turn it on; tell the person and do not retry until they say it
+is on. `502` is worth retrying. Details:
+https://embarko.ai/docs/integrations.md
+
 ## No script, or no network
 
 - `scripts/deploy.sh` missing: follow https://embarko.ai/docs/quickstart.md,
