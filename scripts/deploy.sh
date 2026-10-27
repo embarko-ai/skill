@@ -325,7 +325,7 @@ while IFS= read -r cfg; do
   [[ -n "$rel" && "$rel" != "pyvenv.cfg" ]] && VENV_EXCLUDES+=("--exclude=./$rel")
 done < <(find "$APP_DIR" -mindepth 2 -maxdepth 4 -name pyvenv.cfg -not -path '*/node_modules/*' 2>/dev/null)
 (( ${#VENV_EXCLUDES[@]} > 0 )) && echo "==> Leaving out virtual environment(s): ${VENV_EXCLUDES[*]#--exclude=./}"
-EMBARKO_TAR_EXCLUDES+=("${VENV_EXCLUDES[@]}")
+(( ${#VENV_EXCLUDES[@]} > 0 )) && EMBARKO_TAR_EXCLUDES+=("${VENV_EXCLUDES[@]}")
 
 # dist is dropped only at the root, and only when package.json has a build
 # script, i.e. when the platform will regenerate it. Anywhere else it is
