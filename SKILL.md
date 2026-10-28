@@ -24,6 +24,7 @@ it:
 | Running something on a timer | https://embarko.ai/docs/schedules.md |
 | The embarko.json file | https://embarko.ai/docs/embarko-json.md |
 | Secrets, domains, logs, rollback, rename, delete | https://embarko.ai/docs/index.md (contents) |
+| Storing files (uploads, public links) | https://embarko.ai/docs/files.md |
 | Showcase | https://embarko.ai/docs/showcase.md |
 | Reporting a problem | https://embarko.ai/docs/feedback.md |
 
@@ -151,6 +152,21 @@ off. Embarko has already emailed the workspace Owners about this app with
 a link to turn it on; tell the person and do not retry until they say it
 is on. `502` is worth retrying. Details:
 https://embarko.ai/docs/integrations.md
+
+## Upload a file
+
+Every app has a file store; each file gets a public link. From inside the
+app, Embarko sets `STORAGE_URL` and `STORAGE_TOKEN` (never hardcode them):
+
+```bash
+curl -X PUT "$STORAGE_URL/apps/<app>/files/hero.png" \
+  -H "Authorization: Bearer $STORAGE_TOKEN" --data-binary @hero.png
+```
+
+From your terminal, use `https://ship.embarko.ai/storage` as the base and
+`$DEPLOY_TOKEN` as the bearer. The reply's `url` is the link to use.
+Records still go in SQLite under `DATA_DIR`; files go here. Details:
+https://embarko.ai/docs/files.md
 
 ## No script, or no network
 
