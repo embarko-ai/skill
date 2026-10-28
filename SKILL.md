@@ -1,6 +1,6 @@
 ---
 name: embarko-deploy
-description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app, to make a deployed app do something on a timer (daily report, nightly clean-up), or to showcase / feature / list a deployed app on an Embarko showcase page (public or event).
+description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app, to make a deployed app do something on a timer (daily report, nightly clean-up), to change who is alerted when a deployed app goes down (email, Slack, webhook, phone), or to showcase / feature / list a deployed app on an Embarko showcase page (public or event).
 ---
 
 # Embarko Deploy
@@ -22,6 +22,7 @@ it:
 | An error code | https://embarko.ai/docs/errors.md |
 | Keeping a temporary app | https://embarko.ai/docs/claim.md |
 | Running something on a timer | https://embarko.ai/docs/schedules.md |
+| Crash alerts: who is told when the app goes down, adding Slack, a webhook or a phone (M91), muting | https://embarko.ai/docs/alerts.md |
 | The embarko.json file | https://embarko.ai/docs/embarko-json.md |
 | Secrets, domains, logs, rollback, rename, delete | https://embarko.ai/docs/index.md (contents) |
 | Showcase | https://embarko.ai/docs/showcase.md |
