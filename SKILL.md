@@ -1,6 +1,6 @@
 ---
 name: embarko-deploy
-description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app, to make a deployed app do something on a timer (daily report, nightly clean-up), to change who is alerted when a deployed app goes down (email, Slack, webhook, phone), or to showcase / feature / list a deployed app on an Embarko showcase page (public or event).
+description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app, to make a deployed app do something on a timer (daily report, nightly clean-up), to change who is alerted when a deployed app goes down (email, Slack, webhook, phone), to store files for an app (user uploads, images, PDFs, a public link to a file), or to showcase / feature / list a deployed app on an Embarko showcase page (public or event).
 ---
 
 # Embarko Deploy
@@ -25,6 +25,7 @@ it:
 | Crash alerts: who is told when the app goes down, adding Slack, a webhook or a phone (M91), muting | https://embarko.ai/docs/alerts.md |
 | The embarko.json file | https://embarko.ai/docs/embarko-json.md |
 | Secrets, domains, logs, rollback, rename, delete | https://embarko.ai/docs/index.md (contents) |
+| Storing files: uploads, generated PDFs, images, a public link for each | https://embarko.ai/docs/files.md |
 | Showcase | https://embarko.ai/docs/showcase.md |
 | Reporting a problem | https://embarko.ai/docs/feedback.md |
 
@@ -152,6 +153,39 @@ off. Embarko has already emailed the workspace Owners about this app with
 a link to turn it on; tell the person and do not retry until they say it
 is on. `502` is worth retrying. Details:
 https://embarko.ai/docs/integrations.md
+
+## Store a file
+
+Every app has a file store: PUT the bytes, get a public link back that
+works until the file is deleted. Use it for files people open or download
+(photos, PDFs, exports, images for the site); records still go in SQLite
+under `DATA_DIR`.
+
+From your terminal, with the deploy token (the app must be claimed):
+
+```bash
+curl -sS -X PUT "https://ship.embarko.ai/storage/apps/$APP/files/hero.png" \
+  --oauth2-bearer "$DEPLOY_TOKEN" --data-binary @hero.png
+```
+
+Reply `201 {id, url, sizeBytes, contentType}`. The `url` is the link to
+use. List `GET .../files`, room left `GET .../usage`, delete
+`DELETE .../files/<id>`.
+
+From inside the app, same call: Embarko sets `STORAGE_URL` (the base) and
+`STORAGE_TOKEN` (the bearer, good only for this app's files) on every
+server app, and the app's name is in `APP_NAME`. Read them from the
+environment; never hardcode or print them. Save the returned `id` and
+`url` with the record, and delete the file by `id` when the record goes.
+
+Files are public to anyone with the link. Allowed types, plan limits,
+`409 storage_quota_reached` and the other errors:
+https://embarko.ai/docs/files.md
+
+**Showcase tip.** A listing with an image gets opened far more. If the
+person has no screenshot, offer to take one of the live app, upload it
+here and put the `url` in `screenshotUrls` (see
+https://embarko.ai/docs/showcase.md).
 
 ## No script, or no network
 
