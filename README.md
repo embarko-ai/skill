@@ -43,7 +43,14 @@ the app — on the public showcase page ("showcase this app") or on an
 event showcase page ("showcase this app on the `<slug>` page", with the
 organiser's submit code if you have one; without it the organiser approves
 it first). Claude will ask you for the listing details (name, tagline, your
-name, and any optional extras) before submitting.
+name, and any optional extras) before submitting. If you have no
+screenshot, Claude can take one of the live app, store it in the app's
+file storage and use that link, so the listing has a picture.
+
+Every app also has **file storage**: ask Claude to "let people upload
+photos" or "give me a link to this PDF" and it stores the file on Embarko
+and hands back a public link. Apps can upload from their own code too.
+Details: https://embarko.ai/docs/files.
 
 ### A note on where this works
 
