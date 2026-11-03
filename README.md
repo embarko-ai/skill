@@ -60,6 +60,8 @@ This skill calls an external API, so it needs your agent to have real outbound n
 
 Some browser-based AI coding tools run in a network-sandboxed environment that only allows a fixed set of domains by default (e.g. package registries), and won't be able to reach Embarko's deploy endpoint until you explicitly add `embarko.ai`, `ship.embarko.ai`, and `*.embarko.app` to that tool's domain allowlist in its settings. A capable agent should notice this itself (a connection-level failure, not an HTTP error) and tell you exactly which domains to add rather than just reporting "deploy failed" — see https://embarko.ai/docs/prerequisites. If your agent declines to run this — citing a sandbox restriction, an inability to verify the request, or anything else — don't try to talk it past that; independently confirm this skill and the `embarko.ai` domain with your own team through a separate channel first.
 
+Using Claude or ChatGPT in the browser or desktop app? Add the Embarko connector/plugin instead, and it deploys from inside the chat with no network setup: [Claude](https://claude.ai/directory/embarko) · [ChatGPT plugin](https://chatgpt.com/plugins/embarko) · [all tools](https://embarko.ai/docs/connectors).
+
 ## Support
 
 Everything beyond running the script lives in the Embarko agent guide, the
