@@ -24,6 +24,7 @@ it:
 | Running something on a timer | https://embarko.ai/docs/schedules.md |
 | Crash alerts: who is told when the app goes down, adding Slack, a webhook or a phone (M91), muting | https://embarko.ai/docs/alerts.md |
 | The embarko.json file | https://embarko.ai/docs/embarko-json.md |
+| Making the app private (optional) (only the team can open it) | https://embarko.ai/docs/lock.md |
 | Secrets, domains, logs, rollback, rename, delete | https://embarko.ai/docs/index.md (contents) |
 | Storing files: uploads, generated PDFs, images, a public link for each | https://embarko.ai/docs/files.md |
 | Showcase | https://embarko.ai/docs/showcase.md |
