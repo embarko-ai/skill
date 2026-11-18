@@ -15,13 +15,13 @@ For a repo-local install instead of global, drop the `-g` flag.
 
 **Either way, then:**
 
-2. Set a deploy token (optional — see below):
+2. Set your Embarko key, the deploy token (optional — see below):
    ```bash
    export DEPLOY_TOKEN="..."
    ```
-   No token yet? Ask Claude to deploy anyway — it can deploy anonymously
+   No Embarko key yet? Ask Claude to deploy anyway — it can deploy anonymously
    (a temporary app, no account needed; it hands you a link that keeps
-   the app once you sign in) or get you a token by email with
+   the app once you sign in) or get you an Embarko key by email with
    no dashboard visit at all. See https://embarko.ai/docs/claim.
 3. What your app needs to run (it reads its port from `PORT`, binds to
    `0.0.0.0`, no Dockerfile) is at https://embarko.ai/docs/deploy.
@@ -38,7 +38,7 @@ The same script is the whole thing if you'd rather run it yourself:
 ./scripts/deploy.sh path/to/app     # a specific directory
 ```
 
-Once it's deployed (with a token), you can also ask Claude to **showcase**
+Once it's deployed (with an Embarko key), you can also ask Claude to **showcase**
 the app — on the public showcase page ("showcase this app") or on an
 event showcase page ("showcase this app on the `<slug>` page", with the
 organiser's submit code if you have one; without it the organiser approves

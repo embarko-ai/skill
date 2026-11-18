@@ -48,7 +48,7 @@ it with your own `tar`/`curl` calls.
 - **Report the live URL only once the script exits 0.** A zero exit means
   the app is live.
 - **Then do what it prints under `==> Next:`.** After a first deploy
-  without a token that is keeping the app; on a failure, how to fix it.
+  without an Embarko key that is keeping the app; on a failure, how to fix it.
 - **`==> Keep it:`** is the claim link for a temporary app. Give it to the
   person: opening it and signing in keeps the app. It is printed once only.
 - Deploying again is the same command. After the first deploy the script
@@ -76,8 +76,8 @@ it back.
 ## Run something on a timer
 
 When the person wants something done at set times ("every Monday at 9",
-"each night"), use schedules, not a cron library or crontab. Needs a
-deploy token.
+"each night"), use schedules, not a cron library or crontab. Needs an
+Embarko key (the deploy token).
 
 1. Put the job in a GET route, e.g. `/tasks/weekly-report`. Answer 2xx when
    it worked. Keep anything it must remember under `DATA_DIR`.
@@ -108,7 +108,7 @@ https://embarko.ai/docs/embarko-json.md
 When the app's users need Slack, Google Sheets, a CRM or similar, don't
 build and host that glue. Turn Integrations on and the app gets an
 embedded integrations panel (viaSocket's prebuilt embed) where its users
-connect tools and build their own flows. Needs a deploy token, and the
+connect tools and build their own flows. Needs an Embarko key, and the
 app must be claimed. Static sites can't use it.
 
 **1. Turn it on.** Safe to repeat; a second call answers `alreadyEnabled: true`.
@@ -161,7 +161,7 @@ works until the file is deleted. Use it for files people open or download
 (photos, PDFs, exports, images for the site); records still go in SQLite
 under `DATA_DIR`.
 
-From your terminal, with the deploy token (the app must be claimed):
+From your terminal, with the Embarko key (the app must be claimed):
 
 ```bash
 curl -sS -X PUT "https://ship.embarko.ai/storage/apps/$APP/files/hero.png" \

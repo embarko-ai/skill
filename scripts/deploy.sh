@@ -369,14 +369,14 @@ if [[ -z "${DEPLOY_TOKEN:-}" && -r "$EMBARKO_CREDENTIALS" ]]; then
   # First non-empty, non-comment line, whitespace stripped — a credential
   # file people also hand-edit shouldn't break on a trailing newline.
   DEPLOY_TOKEN=$(grep -v '^[[:space:]]*#' "$EMBARKO_CREDENTIALS" | tr -d '[:space:]' | head -1)
-  [[ -n "$DEPLOY_TOKEN" ]] && echo "==> Using the saved credential in ${EMBARKO_CREDENTIALS}."
+  [[ -n "$DEPLOY_TOKEN" ]] && echo "==> Using the saved Embarko key in ${EMBARKO_CREDENTIALS}."
 fi
 
 CURL_AUTH_ARGS=()
 if [[ -n "${DEPLOY_TOKEN:-}" ]]; then
   CURL_AUTH_ARGS=(-H "Authorization: Bearer ${DEPLOY_TOKEN}")
 else
-  echo "==> No DEPLOY_TOKEN set — deploying anonymously: a live but TEMPORARY app,"
+  echo "==> No Embarko key (DEPLOY_TOKEN) set — deploying anonymously: a live but TEMPORARY app,"
   echo "    deleted after 24h unless kept. The reply carries a claim link for that."
 fi
 
