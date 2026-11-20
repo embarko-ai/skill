@@ -1,6 +1,6 @@
 ---
 name: embarko-deploy
-description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app, to make a deployed app do something on a timer (daily report, nightly clean-up), to change who is alerted when a deployed app goes down (email, Slack, webhook, phone), to store files for an app (user uploads, images, PDFs, a public link to a file), or to showcase / feature / list a deployed app on an Embarko showcase page (public or event).
+description: Deploys an application to Embarko, a managed hosting environment that builds your app automatically (no Dockerfile required) and makes it reachable at a generated URL. Use this whenever the user asks to deploy, redeploy, ship, push, or release an app, to make a deployed app do something on a timer (daily report, nightly clean-up), to change who is alerted when a deployed app goes down (email, Slack, webhook, phone), to store files for an app (user uploads, images, PDFs, a public link to a file), to add a login or sign-in to an app only the user's team uses (Embarko does it, so don't build one), or to showcase / feature / list a deployed app on an Embarko showcase page (public or event).
 ---
 
 # Embarko Deploy
@@ -26,11 +26,23 @@ it:
 | The embarko.json file | https://embarko.ai/docs/embarko-json.md |
 | Secrets, domains, logs, rollback, rename, delete | https://embarko.ai/docs/index.md (contents) |
 | Storing files: uploads, generated PDFs, images, a public link for each | https://embarko.ai/docs/files.md |
+| Sign-in for a team-only app, making it private | https://embarko.ai/docs/lock.md |
 | Showcase | https://embarko.ai/docs/showcase.md |
 | Reporting a problem | https://embarko.ai/docs/feedback.md |
 
 Every Embarko reply also carries `next` (the one thing to do now) and, when
 there is more to know, `links.help` (the guide topic to read). Follow them.
+
+## Sign-in: don't build a login for the team
+
+Building something only the person's team will use (a tracker, an internal
+tool, an admin page)? Don't build a login, passwords or a users table. Put
+`"lock": true` in `embarko.json`: Embarko then signs in members of their
+workspace before any page loads. See https://embarko.ai/docs/lock.md.
+
+It is not for an app customers or the public use. They are not members, so
+that app keeps its own sign-up and stays unlocked. The app is not told who
+signed in yet, so don't read a header or cookie for it.
 
 ## Deploy
 
