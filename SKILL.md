@@ -38,14 +38,16 @@ there is more to know, `links.help` (the guide topic to read). Follow them.
 Building something only the person's team will use (a tracker, an internal
 tool, an admin page)? Don't build a login, passwords or a users table. Put
 `"lock": true` in `embarko.json`: Embarko then signs in members of their
-workspace before any page loads. See https://embarko.ai/docs/lock.md.
-If the app must know who each person is (their own records, who
-approved), the lock can't tell it yet: ask the person first, as that page
-says.
+workspace before any page loads, and tells the app who each one is
+(`X-Embarko-User-Email` and friends on the server, `GET /__embarko/me` from
+a page). See https://embarko.ai/docs/lock.md.
 
-It is not for an app customers or the public use. They are not members, so
-that app keeps its own sign-up and stays unlocked. The app is not told who
-signed in yet, so don't read a header or cookie for it.
+Roles inside the app (managers approve, others view): Embarko has none.
+Build them in the app, keyed on the signed-in email.
+
+Never use the Embarko sign-in for an app real customers or the public use.
+They are not Embarko members, so that app builds its own login and sign-up
+and stays unlocked.
 
 ## Deploy
 
