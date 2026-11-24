@@ -35,6 +35,15 @@
 #                    so the app's deploy history shows who deployed it.
 #                    Optional; falls back to "claude-code" when run inside
 #                    Claude Code, and is omitted otherwise.
+#   EMBARKO_PREVIEW
+#                  — deploy as a PREVIEW of the app instead of to the live
+#                    app: a second copy at <app-name>--<preview>.embarko.app,
+#                    beside live, that someone with "Can edit" puts live.
+#                    Lowercase letters, digits and single dashes, up to 20
+#                    (name it after the change, e.g. "new-look"). The same
+#                    name again updates that preview. Needs the Embarko key.
+#                    Sent as the `X-Preview` header.
+#                    See https://embarko.ai/docs/previews.md
 #   EMBARKO_LP_VARIANT
 #                  — landing-page attribution only: which marketing page
 #                    produced this deploy. Sent as the `lp_variant` header,
@@ -372,6 +381,22 @@ if [[ -z "${DEPLOY_TOKEN:-}" && -r "$EMBARKO_CREDENTIALS" ]]; then
   [[ -n "$DEPLOY_TOKEN" ]] && echo "==> Using the saved Embarko key in ${EMBARKO_CREDENTIALS}."
 fi
 
+# A preview: checked here so a bad name or a missing key stops before any
+# upload. https://embarko.ai/docs/previews.md
+CURL_PREVIEW_ARGS=()
+if [[ -n "${EMBARKO_PREVIEW:-}" ]]; then
+  if [[ ! "$EMBARKO_PREVIEW" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ || ${#EMBARKO_PREVIEW} -gt 20 ]]; then
+    echo "ERROR: EMBARKO_PREVIEW=\"${EMBARKO_PREVIEW}\" is not a preview name: use lowercase letters, digits and single dashes, up to 20 (e.g. new-look)." >&2
+    exit 1
+  fi
+  if [[ -z "${DEPLOY_TOKEN:-}" ]]; then
+    echo "ERROR: a preview needs the Embarko key. Set DEPLOY_TOKEN, or save it to ${EMBARKO_CREDENTIALS}." >&2
+    exit 1
+  fi
+  CURL_PREVIEW_ARGS=(-H "X-Preview: ${EMBARKO_PREVIEW}")
+  echo "==> Deploying a preview \"${EMBARKO_PREVIEW}\" of ${APP_NAME}. The live app does not change."
+fi
+
 CURL_AUTH_ARGS=()
 if [[ -n "${DEPLOY_TOKEN:-}" ]]; then
   CURL_AUTH_ARGS=(-H "Authorization: Bearer ${DEPLOY_TOKEN}")
@@ -415,6 +440,7 @@ RESPONSE=$(curl -sS -X POST "$DEPLOY_URL" \
   ${CURL_ATTRIBUTION_ARGS[@]+"${CURL_ATTRIBUTION_ARGS[@]}"} \
   ${CURL_APP_TYPE_ARGS[@]+"${CURL_APP_TYPE_ARGS[@]}"} \
   ${CURL_AGENT_ARGS[@]+"${CURL_AGENT_ARGS[@]}"} \
+  ${CURL_PREVIEW_ARGS[@]+"${CURL_PREVIEW_ARGS[@]}"} \
   -H "X-App-Name: ${APP_NAME}" \
   -H "X-App-Version: ${VERSION}" \
   -F "source=@${TARBALL}")

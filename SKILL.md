@@ -24,6 +24,8 @@ it:
 | Running something on a timer | https://embarko.ai/docs/schedules.md |
 | Crash alerts: who is told when the app goes down, adding Slack, a webhook or a phone (M91), muting | https://embarko.ai/docs/alerts.md |
 | The embarko.json file | https://embarko.ai/docs/embarko-json.md |
+| Changing an app you did not deploy in this conversation: get its live code first | https://embarko.ai/docs/source.md |
+| Trying a change on a preview beside the live app, or the person can only contribute to the app; putting a preview live | https://embarko.ai/docs/previews.md |
 | Secrets, domains, logs, rollback, rename, delete | https://embarko.ai/docs/index.md (contents) |
 | Storing files: uploads, generated PDFs, images, a public link for each | https://embarko.ai/docs/files.md |
 | Sign-in for a team-only app, making it private | https://embarko.ai/docs/lock.md |
@@ -68,6 +70,25 @@ it with your own `tar`/`curl` calls.
   without an Embarko key that is keeping the app; on a failure, how to fix it.
 - **`==> Keep it:`** is the claim link for a temporary app. Give it to the
   person: opening it and signing in keeps the app. It is printed once only.
+- **Changing an app someone else deployed** (or one you deployed in an
+  earlier conversation): download its live code from Embarko first and
+  make the change on that, never on an older local copy, or you undo
+  their work. How: https://embarko.ai/docs/source.md.
+- **A preview instead of the live app**: set `EMBARKO_PREVIEW=<name>`
+  (lowercase, digits and dashes, up to 20, named after the change, e.g.
+  `new-look`) and run the same command. It goes to
+  `<app-name>--<name>.embarko.app` and the live app does not change; someone
+  with "Can edit" puts it live. Use a preview whenever the person has
+  "Can contribute" access, when they ask to try a change first, or when a
+  deploy is refused with `permission_denied` and
+  `"canPreview": true` (they can contribute, not edit). Deploy again with the
+  same name to update it. Put it live only when someone with "Can edit"
+  asks, and tell them first about any scheduled tasks it changes:
+  https://embarko.ai/docs/previews.md.
+- If putting a preview live returns `preview_behind_live`, download the
+  latest live code, redo the change, and use a new preview name. Updating
+  the old preview keeps its original starting point. Keep the old one
+  unless the person asks to delete it.
 - Deploying again is the same command. After the first deploy the script
   writes the app's id to `embarko.json` as `"appId"`, so every later deploy
   reaches the same app even if its name was changed in the dashboard. Keep
@@ -84,6 +105,7 @@ Optional settings:
 | --- | --- |
 | `EMBARKO_AGENT_NAME` | Your agent name in lowercase (`claude-code`, `claude`, `cursor`...). Filled in automatically inside Claude Code. |
 | `EMBARKO_APP_TYPE` | A short label for what the app is (`portfolio`, `task management`...). Use it if you know; otherwise leave it out. |
+| `EMBARKO_PREVIEW` | Try the change beside live at its own address. Required for Can contribute; see the preview instructions above. |
 | `DEPLOY_TOKEN` | The person's deploy token. Without one, the first deploy is temporary (24 hours) until kept. |
 
 The script finds a token in `DEPLOY_TOKEN`, then in `~/.embarko/credentials`.
