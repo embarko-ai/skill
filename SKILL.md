@@ -82,13 +82,32 @@ it with your own `tar`/`curl` calls.
   "Can contribute" access, when they ask to try a change first, or when a
   deploy is refused with `permission_denied` and
   `"canPreview": true` (they can contribute, not edit). Deploy again with the
-  same name to update it. Put it live only when someone with "Can edit"
+  same name to update it. Always set `EMBARKO_PREVIEW_NOTE` to one or two plain
+  sentences on what you changed (what people will notice, anything they must
+  set up): it is shown on the preview and in the review email, and a later
+  deploy without a note keeps the last one. Put it live only when someone with "Can edit"
   asks, and tell them first about any scheduled tasks it changes:
   https://embarko.ai/docs/previews.md.
-- If putting a preview live returns `preview_behind_live`, download the
-  latest live code, redo the change, and use a new preview name. Updating
-  the old preview keeps its original starting point. Keep the old one
-  unless the person asks to delete it.
+- **Asking someone to look at a preview**: when it works and the person
+  wants a review, `POST https://ship.embarko.ai/api/apps/<app-name>/previews/<name>/ready`
+  with the Embarko key. The people who can put it live get one email; the
+  reply says how many (`notified`). Deploying to the preview again clears
+  the request. You can add `{"note": "what you changed, in one or two
+  sentences"}` to that call to set or replace the note. `POST
+  .../previews/<name>/summary` (an AI's 3 to 6 sentences on the code) works
+  only when the owner has switched summaries on; if it answers
+  `summary_not_configured`, write the note yourself. A summary is a reading
+  aid, never proof the change is safe.
+- **If putting a preview live returns `preview_behind_live`** (the live app
+  changed after the preview started): `POST .../previews/<name>/update` with
+  the Embarko key first. Embarko combines live's new code with the
+  preview's and deploys a new preview version as the key's owner (202; wait
+  for it like any deploy, then check it and tell the person). Only then put
+  it live. If the answer is `merge_conflict`, nothing was built: the reply
+  lists the files and the clashing lines. Download the latest live code,
+  make the same change on it, and deploy it under a new preview name. Keep
+  the old preview unless the person asks to delete it. Never put a behind
+  preview live by deploying its code straight to the live app.
 - Deploying again is the same command. After the first deploy the script
   writes the app's id to `embarko.json` as `"appId"`, so every later deploy
   reaches the same app even if its name was changed in the dashboard. Keep
@@ -106,6 +125,7 @@ Optional settings:
 | `EMBARKO_AGENT_NAME` | Your agent name in lowercase (`claude-code`, `claude`, `cursor`...). Filled in automatically inside Claude Code. |
 | `EMBARKO_APP_TYPE` | A short label for what the app is (`portfolio`, `task management`...). Use it if you know; otherwise leave it out. |
 | `EMBARKO_PREVIEW` | Try the change beside live at its own address. Required for Can contribute; see the preview instructions above. |
+| `EMBARKO_PREVIEW_NOTE` | With a preview: one or two plain sentences on what you changed. Shown on the preview and in the review email. |
 | `DEPLOY_TOKEN` | The person's deploy token. Without one, the first deploy is temporary (24 hours) until kept. |
 
 The script finds a token in `DEPLOY_TOKEN`, then in `~/.embarko/credentials`.

@@ -44,6 +44,13 @@
 #                    name again updates that preview. Needs the Embarko key.
 #                    Sent as the `X-Preview` header.
 #                    See https://embarko.ai/docs/previews.md
+#   EMBARKO_PREVIEW_NOTE
+#                  — with EMBARKO_PREVIEW: what this change is, in one or two
+#                    plain sentences for the person who will look at it (what
+#                    they will notice, anything they must set up). Shown on the
+#                    preview and in the review email; up to 400 characters.
+#                    Sent percent-encoded as the `X-Preview-Note` header. Left
+#                    out, the preview keeps the note from its last deploy.
 #   EMBARKO_LP_VARIANT
 #                  — landing-page attribution only: which marketing page
 #                    produced this deploy. Sent as the `lp_variant` header,
@@ -381,6 +388,21 @@ if [[ -z "${DEPLOY_TOKEN:-}" && -r "$EMBARKO_CREDENTIALS" ]]; then
   [[ -n "$DEPLOY_TOKEN" ]] && echo "==> Using the saved Embarko key in ${EMBARKO_CREDENTIALS}."
 fi
 
+# Header values are ASCII: anything else (and spaces, quotes, newlines) is
+# sent percent-encoded, which hostnsoft-deploy decodes.
+percent_encode() {
+  local hex byte out=""
+  for hex in $(printf '%s' "$1" | od -An -v -tx1); do
+    byte=$((16#$hex))
+    if (( (byte >= 48 && byte <= 57) || (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122) || byte == 45 || byte == 46 || byte == 95 || byte == 126 )); then
+      out+=$(printf "\\x$hex")
+    else
+      out+="%$(printf '%s' "$hex" | tr 'a-f' 'A-F')"
+    fi
+  done
+  printf '%s' "$out"
+}
+
 # A preview: checked here so a bad name or a missing key stops before any
 # upload. https://embarko.ai/docs/previews.md
 CURL_PREVIEW_ARGS=()
@@ -394,6 +416,11 @@ if [[ -n "${EMBARKO_PREVIEW:-}" ]]; then
     exit 1
   fi
   CURL_PREVIEW_ARGS=(-H "X-Preview: ${EMBARKO_PREVIEW}")
+  if [[ -n "${EMBARKO_PREVIEW_NOTE:-}" ]]; then
+    CURL_PREVIEW_ARGS+=(-H "X-Preview-Note: $(percent_encode "${EMBARKO_PREVIEW_NOTE:0:400}")")
+  else
+    echo "==> No EMBARKO_PREVIEW_NOTE: the preview keeps its last note. Say what you changed, in one or two plain sentences, so the person looking at it knows."
+  fi
   echo "==> Deploying a preview \"${EMBARKO_PREVIEW}\" of ${APP_NAME}. The live app does not change."
 fi
 
