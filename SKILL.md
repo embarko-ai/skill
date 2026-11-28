@@ -109,6 +109,11 @@ it with your own `tar`/`curl` calls.
   preview is lost (say so first); live is not touched; the preview is left
   asleep and starts on the new data when opened. `data_copy_off` means the
   team switched copying off: offer `empty`. Details:
+- **Comments on a preview**: `GET .../previews/<name>/comments` before you
+  change a preview someone commented on, so you answer what they asked.
+  `POST` the same address with `{"body":"..."}` only when the person asks
+  you to say something to the others, in their words. Needs Can contribute
+  or more. Never paste secrets or personal data into one. Details:
   https://embarko.ai/docs/previews.md.
 - **If putting a preview live returns `preview_behind_live`** (the live app
   changed after the preview started): `POST .../previews/<name>/update` with
