@@ -123,6 +123,11 @@ it with your own `tar`/`curl` calls.
   (the preview's maker or Can edit; `apply` restarts it with them). Never
   read or repeat a value back; never override PORT, DATA_DIR or
   STORAGE_TOKEN (`env_var_conflict`). Live is not changed. Details:
+- **Keeping a preview** (a staging copy that should not expire): only if the
+  person asks, and only with Can edit, `POST .../previews/<name>/pin`
+  (`/unpin` lets it expire again). An app keeps one pinned preview
+  (`pin_limit` names the other). Without a pin a preview is deleted after 7
+  days with no visit or deploy: say so when handing one over. Details:
   https://embarko.ai/docs/previews.md.
 - **If putting a preview live returns `preview_behind_live`** (the live app
   changed after the preview started): `POST .../previews/<name>/update` with
