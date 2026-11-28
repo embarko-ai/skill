@@ -114,6 +114,15 @@ it with your own `tar`/`curl` calls.
   `POST` the same address with `{"body":"..."}` only when the person asks
   you to say something to the others, in their words. Needs Can contribute
   or more. Never paste secrets or personal data into one. Details:
+- **A preview needs a different value of a variable** (a test database or a
+  sandbox key instead of live's): a preview inherits ALL of live's
+  variables, so first `GET .../previews/<name>/env-vars`; a name with
+  `sharedService: true` points at a database or service live uses, so tell
+  the person the preview would write to the real one and offer a test one.
+  Then `PUT` the same address with `{"vars":[{"key":"…","value":"…"}],"apply":true}`
+  (the preview's maker or Can edit; `apply` restarts it with them). Never
+  read or repeat a value back; never override PORT, DATA_DIR or
+  STORAGE_TOKEN (`env_var_conflict`). Live is not changed. Details:
   https://embarko.ai/docs/previews.md.
 - **If putting a preview live returns `preview_behind_live`** (the live app
   changed after the preview started): `POST .../previews/<name>/update` with
