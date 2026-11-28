@@ -24,7 +24,7 @@ it:
 | Running something on a timer | https://embarko.ai/docs/schedules.md |
 | Crash alerts: who is told when the app goes down, adding Slack, a webhook or a phone (M91), muting | https://embarko.ai/docs/alerts.md |
 | The embarko.json file | https://embarko.ai/docs/embarko-json.md |
-| Changing an app you did not deploy in this conversation: get its live code first | https://embarko.ai/docs/source.md |
+| Changing an app you did not deploy in this conversation, or the person names only an address ("edit workflow.in"): find the app, get its live code first | https://embarko.ai/docs/source.md |
 | Trying a change on a preview beside the live app, or the person can only contribute to the app; putting a preview live | https://embarko.ai/docs/previews.md |
 | Secrets, domains, logs, rollback, rename, delete | https://embarko.ai/docs/index.md (contents) |
 | Storing files: uploads, generated PDFs, images, a public link for each | https://embarko.ai/docs/files.md |
@@ -74,6 +74,11 @@ it with your own `tar`/`curl` calls.
   earlier conversation): download its live code from Embarko first and
   make the change on that, never on an older local copy, or you undo
   their work. How: https://embarko.ai/docs/source.md.
+  If the person gives an address (a domain like `workflow.in`) and not an
+  app name, ask Embarko which app it is first (`GET /find-app?address=…`, or
+  the connector's "Find app by address" tool): it searches every workspace
+  they are in, says what they may do, and whether the code can be downloaded.
+  If it says no, tell the person why and stop. Never guess an app name.
 - **A preview instead of the live app**: set `EMBARKO_PREVIEW=<name>`
   (lowercase, digits and dashes, up to 20, named after the change, e.g.
   `new-look`) and run the same command. It goes to
@@ -98,6 +103,35 @@ it with your own `tar`/`curl` calls.
   only when the owner has switched summaries on; if it answers
   `summary_not_configured`, write the note yourself. A summary is a reading
   aid, never proof the change is safe.
+- **A preview's data is stale or full of test rows**: only if the person
+  asks, `POST .../previews/<name>/reset-data` with `{"mode":"copy"}` (a new
+  copy of live's data) or `{"mode":"empty"}`. Anything typed into the
+  preview is lost (say so first); live is not touched; the preview is left
+  asleep and starts on the new data when opened. `data_copy_off` means the
+  team switched copying off: offer `empty`. Details:
+  https://embarko.ai/docs/previews.md.
+- **Comments on a preview**: `GET .../previews/<name>/comments` before you
+  change a preview someone commented on, so you answer what they asked.
+  `POST` the same address with `{"body":"..."}` only when the person asks
+  you to say something to the others, in their words. Needs Can contribute
+  or more. Never paste secrets or personal data into one. Details:
+  https://embarko.ai/docs/previews.md.
+- **A preview needs a different value of a variable** (a test database or a
+  sandbox key instead of live's): a preview inherits ALL of live's
+  variables, so first `GET .../previews/<name>/env-vars`; a name with
+  `sharedService: true` points at a database or service live uses, so tell
+  the person the preview would write to the real one and offer a test one.
+  Then `PUT` the same address with `{"vars":[{"key":"…","value":"…"}],"apply":true}`
+  (the preview's maker or Can edit; `apply` restarts it with them). Never
+  read or repeat a value back; never override PORT, DATA_DIR or
+  STORAGE_TOKEN (`env_var_conflict`). Live is not changed. Details:
+  https://embarko.ai/docs/previews.md.
+- **Keeping a preview** (a staging copy that should not expire): only if the
+  person asks, and only with Can edit, `POST .../previews/<name>/pin`
+  (`/unpin` lets it expire again). An app keeps one pinned preview
+  (`pin_limit` names the other). Without a pin a preview is deleted after 7
+  days with no visit or deploy: say so when handing one over. Details:
+  https://embarko.ai/docs/previews.md.
 - **If putting a preview live returns `preview_behind_live`** (the live app
   changed after the preview started): `POST .../previews/<name>/update` with
   the Embarko key first. Embarko combines live's new code with the
