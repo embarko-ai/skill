@@ -103,6 +103,13 @@ it with your own `tar`/`curl` calls.
   only when the owner has switched summaries on; if it answers
   `summary_not_configured`, write the note yourself. A summary is a reading
   aid, never proof the change is safe.
+- **A preview's data is stale or full of test rows**: only if the person
+  asks, `POST .../previews/<name>/reset-data` with `{"mode":"copy"}` (a new
+  copy of live's data) or `{"mode":"empty"}`. Anything typed into the
+  preview is lost (say so first); live is not touched; the preview is left
+  asleep and starts on the new data when opened. `data_copy_off` means the
+  team switched copying off: offer `empty`. Details:
+  https://embarko.ai/docs/previews.md.
 - **If putting a preview live returns `preview_behind_live`** (the live app
   changed after the preview started): `POST .../previews/<name>/update` with
   the Embarko key first. Embarko combines live's new code with the
