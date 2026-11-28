@@ -109,11 +109,13 @@ it with your own `tar`/`curl` calls.
   preview is lost (say so first); live is not touched; the preview is left
   asleep and starts on the new data when opened. `data_copy_off` means the
   team switched copying off: offer `empty`. Details:
+  https://embarko.ai/docs/previews.md.
 - **Comments on a preview**: `GET .../previews/<name>/comments` before you
   change a preview someone commented on, so you answer what they asked.
   `POST` the same address with `{"body":"..."}` only when the person asks
   you to say something to the others, in their words. Needs Can contribute
   or more. Never paste secrets or personal data into one. Details:
+  https://embarko.ai/docs/previews.md.
 - **A preview needs a different value of a variable** (a test database or a
   sandbox key instead of live's): a preview inherits ALL of live's
   variables, so first `GET .../previews/<name>/env-vars`; a name with
@@ -123,6 +125,7 @@ it with your own `tar`/`curl` calls.
   (the preview's maker or Can edit; `apply` restarts it with them). Never
   read or repeat a value back; never override PORT, DATA_DIR or
   STORAGE_TOKEN (`env_var_conflict`). Live is not changed. Details:
+  https://embarko.ai/docs/previews.md.
 - **Keeping a preview** (a staging copy that should not expire): only if the
   person asks, and only with Can edit, `POST .../previews/<name>/pin`
   (`/unpin` lets it expire again). An app keeps one pinned preview
