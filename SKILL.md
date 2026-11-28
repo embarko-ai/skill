@@ -24,7 +24,7 @@ it:
 | Running something on a timer | https://embarko.ai/docs/schedules.md |
 | Crash alerts: who is told when the app goes down, adding Slack, a webhook or a phone (M91), muting | https://embarko.ai/docs/alerts.md |
 | The embarko.json file | https://embarko.ai/docs/embarko-json.md |
-| Changing an app you did not deploy in this conversation: get its live code first | https://embarko.ai/docs/source.md |
+| Changing an app you did not deploy in this conversation, or the person names only an address ("edit workflow.in"): find the app, get its live code first | https://embarko.ai/docs/source.md |
 | Trying a change on a preview beside the live app, or the person can only contribute to the app; putting a preview live | https://embarko.ai/docs/previews.md |
 | Secrets, domains, logs, rollback, rename, delete | https://embarko.ai/docs/index.md (contents) |
 | Storing files: uploads, generated PDFs, images, a public link for each | https://embarko.ai/docs/files.md |
@@ -74,6 +74,11 @@ it with your own `tar`/`curl` calls.
   earlier conversation): download its live code from Embarko first and
   make the change on that, never on an older local copy, or you undo
   their work. How: https://embarko.ai/docs/source.md.
+  If the person gives an address (a domain like `workflow.in`) and not an
+  app name, ask Embarko which app it is first (`GET /find-app?address=…`, or
+  the connector's "Find app by address" tool): it searches every workspace
+  they are in, says what they may do, and whether the code can be downloaded.
+  If it says no, tell the person why and stop. Never guess an app name.
 - **A preview instead of the live app**: set `EMBARKO_PREVIEW=<name>`
   (lowercase, digits and dashes, up to 20, named after the change, e.g.
   `new-look`) and run the same command. It goes to
